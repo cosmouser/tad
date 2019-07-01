@@ -46,7 +46,7 @@ func parseSummary(r io.Reader) (sum summary, err error) {
 	return
 }
 
-func parseChatlog(r io.Reader) (chat lobbyChat, err error) {
+func parseLobbyChat(r io.Reader) (chat lobbyChat, err error) {
 	data, err := loadSection(r)
 	if err != nil {
 		return chat, err

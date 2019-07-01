@@ -1,6 +1,7 @@
 package ted
 
 import (
+	"net"
 	"os"
 	"path"
 	"strings"
@@ -41,7 +42,7 @@ func TestParseSummary(t *testing.T) {
 	tf.Close()
 }
 
-func TestParseChatlog(t *testing.T) {
+func TestParseLobbyChat(t *testing.T) {
 	tf, err := os.Open(sample1)
 	if err != nil {
 		t.Error(err)
@@ -56,7 +57,7 @@ func TestParseChatlog(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	clog, err := parseChatlog(tf)
+	clog, err := parseLobbyChat(tf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -68,6 +69,53 @@ func TestParseChatlog(t *testing.T) {
 	}
 	for i, v := range clog.Messages {
 		t.Logf("message %d: %v", i, v)
+	}
+	tf.Close()
+}
+
+func TestParseAddresses(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip the summary
+	sum, err := parseSummary(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip the extra header
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip lobbychat
+	_, err = parseLobbyChat(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip version
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip date
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip startedfrom sector
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		addressBlock, err := parseAddressBlock(tf)
+		if err != nil {
+			t.Error(err)
+		}
+		if net.ParseIP(addressBlock.IP) == nil {
+			t.Error("unable to parse adddressBlock.IP")
+		}
 	}
 	tf.Close()
 }

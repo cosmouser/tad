@@ -16,6 +16,10 @@ type lobbyChat struct {
 	Messages []string
 }
 
+type addressBlock struct {
+	IP string
+}
+
 // func (s *lobbyChat) sectorType() string {
 // 	return "LobbyChat"
 // }
