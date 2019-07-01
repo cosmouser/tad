@@ -5,5 +5,5 @@ type summary struct {
 	Version    [2]byte
 	NumPlayers uint8
 	MaxUnits   uint16
-	MapName    []byte
+	MapName    [15]byte
 }

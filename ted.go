@@ -1,6 +1,7 @@
 package ted
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -26,5 +27,22 @@ func loadSection(r io.Reader) (data []byte, err error) {
 	if bytesRead != len(data) {
 		err = errors.New("short read")
 	}
+	return
+}
+
+func parseSummary(r io.Reader) (sum summary, err error) {
+	data, err := loadSection(r)
+	if err != nil {
+		return sum, err
+	}
+	dbuf := bytes.Buffer{}
+	if n, err := dbuf.Write(data); n != len(data) || err != nil {
+		return sum, errors.New("failed to write summary data to buffer")
+	}
+	fill := make([]byte, 32)
+	if n, err := dbuf.Write(fill); n != len(fill) || err != nil {
+		return sum, errors.New("failed to write summary data to buffer")
+	}
+	err = binary.Read(&dbuf, binary.LittleEndian, &sum)
 	return
 }

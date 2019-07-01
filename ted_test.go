@@ -3,6 +3,7 @@ package ted
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 )
 
@@ -29,17 +30,13 @@ func TestParseSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	data, err := loadSection(tf)
-	if err != nil {
-		t.Error(err)
-	}
-	s, err := parseSummary(data)
+	s, err := parseSummary(tf)
 	if err != nil {
 		t.Error(err)
 	}
 	mapName := "[V] Dark Comet"
-	if string(s.MapName) != mapName {
-		t.Errorf("wanted %v, got %v", mapName, string(s.MapName))
+	if strings.Index(string(s.MapName[:]), mapName) != 0 {
+		t.Errorf("wanted %v, got %v", mapName, string(s.MapName[:]))
 	}
 	tf.Close()
 }
