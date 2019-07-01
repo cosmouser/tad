@@ -26,6 +26,28 @@ type playerBlock struct {
 	Number byte
 	Name   [32]byte
 }
+type unitSyncRecord struct {
+	ID    uint32
+	CRC   uint32
+	InUse bool
+	Limit uint16
+}
+
+type unitSync02 struct {
+	Marker byte
+	Sub    byte
+	_      [4]byte
+	ID     uint32
+	CRC    uint32
+}
+type unitSync03 struct {
+	Marker byte
+	Sub    byte
+	_      [4]byte
+	ID     uint32
+	Status uint16
+	Limit  uint16
+}
 
 // func (s *lobbyChat) sectorType() string {
 // 	return "LobbyChat"

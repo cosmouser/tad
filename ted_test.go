@@ -179,3 +179,63 @@ func TestParsePlayers(t *testing.T) {
 	}
 	tf.Close()
 }
+func TestParseUnitSyncData(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip the summary
+	sum, err := parseSummary(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip the extra header
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip lobbychat
+	_, err = parseLobbyChat(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip version
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip date
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip startedfrom sector
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		_, err := parseAddressBlock(tf)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		_, err := parsePlayer(tf)
+		if err != nil {
+			t.Error(err)
+		}
+
+	}
+	upd, err := parseUnitSyncData(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	if upd[0x5f958268].InUse != false {
+		t.Error("Helper unit marked as InUse")
+	}
+	if upd[0x3ed65df7].InUse != true {
+		t.Error("0x3ed65df7 unit marked as not InUse")
+	}
+	tf.Close()
+}
