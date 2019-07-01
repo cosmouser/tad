@@ -70,6 +70,22 @@ func parseAddressBlock(r io.Reader) (ab addressBlock, err error) {
 	ab.IP = string(ip[0])
 	return
 }
+func parsePlayer(r io.Reader) (pb playerBlock, err error) {
+	data, err := loadSection(r)
+	if err != nil {
+		return pb, err
+	}
+	dbuf := bytes.Buffer{}
+	if n, err := dbuf.Write(data); n != len(data) || err != nil {
+		return pb, errors.New("failed to write player data to buffer")
+	}
+	fill := make([]byte, 32)
+	if n, err := dbuf.Write(fill); n != len(fill) || err != nil {
+		return pb, errors.New("failed to write player data to buffer")
+	}
+	err = binary.Read(&dbuf, binary.LittleEndian, &pb)
+	return
+}
 
 func simpleCrypt(in []byte) []byte {
 	out := make([]byte, len(in))

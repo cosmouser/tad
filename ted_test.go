@@ -119,3 +119,63 @@ func TestParseAddresses(t *testing.T) {
 	}
 	tf.Close()
 }
+
+func TestParsePlayers(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip the summary
+	sum, err := parseSummary(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip the extra header
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip lobbychat
+	_, err = parseLobbyChat(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip version
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip date
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	// skip startedfrom sector
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		_, err := parseAddressBlock(tf)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		player, err := parsePlayer(tf)
+		if err != nil {
+			t.Error(err)
+		}
+		if int(player.Number) != i+1 {
+			t.Error("player out of order")
+		}
+		if i == 1 {
+			playerName := "didou"
+			if strings.Index(string(player.Name[:]), playerName) != 0 {
+				t.Errorf("wanted %v, got %v", playerName, string(player.Name[:]))
+			}
+		}
+
+	}
+	tf.Close()
+}

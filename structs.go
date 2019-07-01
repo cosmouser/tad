@@ -20,6 +20,13 @@ type addressBlock struct {
 	IP string
 }
 
+type playerBlock struct {
+	Color  byte
+	Side   byte
+	Number byte
+	Name   [32]byte
+}
+
 // func (s *lobbyChat) sectorType() string {
 // 	return "LobbyChat"
 // }
