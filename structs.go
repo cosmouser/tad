@@ -5,5 +5,15 @@ type summary struct {
 	Version    [2]byte
 	NumPlayers uint8
 	MaxUnits   uint16
-	MapName    [15]byte
+	MapName    [32]byte
+}
+
+type lobbyMessage struct {
+	Sender string
+	Body   string
+}
+
+type logSector interface {
+	values() map[string]interface{}
+	sectorType() string
 }

@@ -46,11 +46,17 @@ func testParseChatlog(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	// skip the summary
 	_, err = parseSummary(tf)
 	if err != nil {
 		t.Error(err)
 	}
-	chatlog, err := parseChatlog(tf)
+	// skip the extra header
+	_, err = loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = parseChatlog(tf)
 	if err != nil {
 		t.Error(err)
 	}

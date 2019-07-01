@@ -46,3 +46,11 @@ func parseSummary(r io.Reader) (sum summary, err error) {
 	err = binary.Read(&dbuf, binary.LittleEndian, &sum)
 	return
 }
+
+func parseChatlog(r io.Reader) (chat []lobbyMessage, err error) {
+	_, err = loadSection(r)
+	if err != nil {
+		return chat, err
+	}
+	return
+}
