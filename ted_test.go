@@ -23,3 +23,23 @@ func TestLoadSection(t *testing.T) {
 	}
 	tf.Close()
 }
+
+func TestParseSummary(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	data, err := loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	s, err := parseSummary(data)
+	if err != nil {
+		t.Error(err)
+	}
+	mapName := "[V] Dark Comet"
+	if string(s.MapName) != mapName {
+		t.Errorf("wanted %v, got %v", mapName, string(s.MapName))
+	}
+	tf.Close()
+}
