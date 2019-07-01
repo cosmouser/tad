@@ -40,3 +40,19 @@ func TestParseSummary(t *testing.T) {
 	}
 	tf.Close()
 }
+
+func testParseChatlog(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = parseSummary(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	chatlog, err := parseChatlog(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	tf.Close()
+}
