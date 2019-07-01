@@ -59,3 +59,25 @@ func parseLobbyChat(r io.Reader) (chat lobbyChat, err error) {
 	}
 	return
 }
+
+func parseAddressBlock(r io.Reader) (ab addressBlock, err error) {
+	data, err := loadSection(r)
+	if err != nil {
+		return ab, err
+	}
+	addressData := simpleCrypt(data[4:])
+	ip := bytes.Split(addressData[0x50:], []byte{0x0})
+	ab.IP = string(ip[0])
+	return
+}
+
+func simpleCrypt(in []byte) []byte {
+	out := make([]byte, len(in))
+	for i := range in {
+		out[i] = in[i]
+	}
+	for i := range out {
+		out[i] = out[i] ^ 42
+	}
+	return out
+}
