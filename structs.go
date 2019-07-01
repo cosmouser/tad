@@ -8,12 +8,18 @@ type summary struct {
 	MapName    [32]byte
 }
 
-type lobbyMessage struct {
-	Sender string
-	Body   string
+// func (s *summary) sectorType() string {
+// 	return "Summary"
+// }
+
+type lobbyChat struct {
+	Messages []string
 }
 
-type logSector interface {
-	values() map[string]interface{}
-	sectorType() string
-}
+// func (s *lobbyChat) sectorType() string {
+// 	return "LobbyChat"
+// }
+
+// type logSector interface {
+// 	sectorType() string
+// }

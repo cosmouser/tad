@@ -29,7 +29,6 @@ func loadSection(r io.Reader) (data []byte, err error) {
 	}
 	return
 }
-
 func parseSummary(r io.Reader) (sum summary, err error) {
 	data, err := loadSection(r)
 	if err != nil {
@@ -47,10 +46,16 @@ func parseSummary(r io.Reader) (sum summary, err error) {
 	return
 }
 
-func parseChatlog(r io.Reader) (chat []lobbyMessage, err error) {
-	_, err = loadSection(r)
+func parseChatlog(r io.Reader) (chat lobbyChat, err error) {
+	data, err := loadSection(r)
 	if err != nil {
 		return chat, err
+	}
+	chatlog := data[4:]
+	raw := bytes.Split(chatlog, []byte{0x0d})
+	chat.Messages = make([]string, len(raw)-1)
+	for i := range chat.Messages {
+		chat.Messages[i] = string(raw[i])
 	}
 	return
 }

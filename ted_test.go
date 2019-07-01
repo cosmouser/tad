@@ -20,7 +20,7 @@ func TestLoadSection(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		t.Log(string(data))
+		t.Log(data)
 	}
 	tf.Close()
 }
@@ -41,7 +41,7 @@ func TestParseSummary(t *testing.T) {
 	tf.Close()
 }
 
-func testParseChatlog(t *testing.T) {
+func TestParseChatlog(t *testing.T) {
 	tf, err := os.Open(sample1)
 	if err != nil {
 		t.Error(err)
@@ -56,9 +56,18 @@ func testParseChatlog(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = parseChatlog(tf)
+	clog, err := parseChatlog(tf)
 	if err != nil {
 		t.Error(err)
+	}
+	if len(clog.Messages) != 2 {
+		t.Errorf("wanted 2 for length of Messages, got %d", len(clog.Messages))
+	}
+	if len(clog.Messages[0]) == 0 {
+		t.Error("got 0 for length of first lobby message")
+	}
+	for i, v := range clog.Messages {
+		t.Logf("message %d: %v", i, v)
 	}
 	tf.Close()
 }
