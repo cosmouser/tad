@@ -73,6 +73,42 @@ func TestParseLobbyChat(t *testing.T) {
 	tf.Close()
 }
 
+func TestReadHeaders(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	sum, err := parseSummary(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	want := "TA Demo\x00"
+	if string(sum.Magic[:]) != want {
+		t.Errorf("got %v or %v, wanted %v", string(sum.Magic[:]), sum.Magic[:], want)
+	}
+	version := int(sum.Version[0])
+	if version != 5 {
+		t.Error("got incompatible version number")
+	}
+	eh, err := loadSection(tf)
+	numSectors := int(eh[0])
+	for i := 1; i < numSectors; i++ {
+		sec, err := loadSection(tf)
+		if err != nil {
+			t.Error(err)
+		}
+		ex, err := parseExtra(sec)
+		if err != nil {
+			t.Error(err)
+		}
+		t.Log(ex.sectorType)
+
+
+	}
+	tf.Close()
+}
+
+
 func TestParseAddresses(t *testing.T) {
 	tf, err := os.Open(sample1)
 	if err != nil {
@@ -89,7 +125,7 @@ func TestParseAddresses(t *testing.T) {
 		t.Error(err)
 	}
 	// skip lobbychat
-	_, err = parseLobbyChat(tf)
+	_, err = loadSection(tf)
 	if err != nil {
 		t.Error(err)
 	}

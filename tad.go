@@ -29,6 +29,21 @@ func loadSection(r io.Reader) (data []byte, err error) {
 	}
 	return
 }
+func parseExtra(secData []byte) (extra extraSector, err error) {
+	var n int
+	secReader := bytes.NewReader(secData)
+	err = binary.Read(secReader, binary.LittleEndian, &extra.sectorType)
+	if err != nil {
+		return
+	}
+	remBytes := len(secData)-4
+	extra.data = make([]byte, remBytes)
+	n, err = secReader.Read(extra.data)
+	if n != remBytes {
+		return extra, errors.New("parseExtra made short read")
+	}
+	return
+}
 func parseSummary(r io.Reader) (sum summary, err error) {
 	data, err := loadSection(r)
 	if err != nil {
@@ -46,13 +61,8 @@ func parseSummary(r io.Reader) (sum summary, err error) {
 	return
 }
 
-func parseLobbyChat(r io.Reader) (chat lobbyChat, err error) {
-	data, err := loadSection(r)
-	if err != nil {
-		return chat, err
-	}
-	chatlog := data[4:]
-	raw := bytes.Split(chatlog, []byte{0x0d})
+func parseLobbyChat(extra extraSector) (chat lobbyChat, err error) {
+	raw := bytes.Split(extra.data, []byte{0x0d})
 	chat.Messages = make([]string, len(raw)-1)
 	for i := range chat.Messages {
 		chat.Messages[i] = string(raw[i])

@@ -1,5 +1,17 @@
 package tad
 
+type sectorType int32
+
+const (
+	commentsType sectorType = iota+1
+	lobbyChatType
+	versionNumberType
+	dateStringType
+	recFromType
+	playerAddrType
+)
+
+
 type summary struct {
 	Magic      [8]byte
 	Version    [2]byte
@@ -8,9 +20,10 @@ type summary struct {
 	MapName    [32]byte
 }
 
-// func (s *summary) sectorType() string {
-// 	return "Summary"
-// }
+type extraSector struct {
+	sectorType
+	data []byte
+}
 
 type lobbyChat struct {
 	Messages []string
