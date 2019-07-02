@@ -3,14 +3,13 @@ package tad
 type sectorType int32
 
 const (
-	commentsType sectorType = iota+1
+	commentsType sectorType = iota + 1
 	lobbyChatType
 	versionNumberType
 	dateStringType
 	recFromType
 	playerAddrType
 )
-
 
 type summary struct {
 	Magic      [8]byte
@@ -22,11 +21,11 @@ type summary struct {
 
 type extraSector struct {
 	sectorType // int32
-	data []byte
+	data       []byte
 }
 type statusMsg struct {
 	Number byte
-	Data []byte
+	Data   []byte
 }
 
 type lobbyChat struct {
@@ -43,6 +42,7 @@ type playerBlock struct {
 	Number byte
 	Name   [64]byte
 }
+
 // DemoPlayer is the in memory representation of a player
 type DemoPlayer struct {
 	Color  byte
@@ -74,14 +74,3 @@ type unitSync03 struct {
 	Status uint16
 	Limit  uint16
 }
-
-type statusMessage struct {
-}
-
-// func (s *lobbyChat) sectorType() string {
-// 	return "LobbyChat"
-// }
-
-// type logSector interface {
-// 	sectorType() string
-// }

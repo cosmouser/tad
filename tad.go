@@ -36,7 +36,7 @@ func parseExtra(secData []byte) (extra extraSector, err error) {
 	if err != nil {
 		return
 	}
-	remBytes := len(secData)-4
+	remBytes := len(secData) - 4
 	extra.data = make([]byte, remBytes)
 	n, err = secReader.Read(extra.data)
 	if n != remBytes {
@@ -107,7 +107,7 @@ func parseStatMsg(r io.Reader) (sm statusMsg, err error) {
 		return sm, err
 	}
 	sm.Number = b
-	dataLen := len(data)-1
+	dataLen := len(data) - 1
 	sm.Data = make([]byte, dataLen)
 	n, err := sr.Read(sm.Data)
 	if err != nil || n != dataLen {
@@ -159,7 +159,67 @@ func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error
 }
 
 func createPacket(raw []byte) (out []byte, err error) {
-	out, err = decryptPacket(raw)
+	tmp := []byte{}
+	tmp, err = decryptPacket(raw)
+	if tmp[0] == 0x04 {
+		out, err = decompressLZ77(tmp)
+		return
+	}
+	return tmp, nil
+}
+func decompressLZ77(compressed []byte) (decompressed []byte, err error) {
+	var window [4096]byte
+	var windowPos = 1
+	var writeBuf bytes.Buffer
+	if compressed[0] != 0x04 {
+		return compressed, nil
+	}
+	if n, err := writeBuf.Write(compressed[:3]); n != 3 || err != nil {
+		return nil, err
+	}
+	reader := bytes.NewReader(compressed[3:])
+	for {
+		tag, err := reader.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < 8; i++ {
+			if (tag & 1) == 0 {
+				value, err := reader.ReadByte()
+				if err != nil {
+					return nil, err
+				}
+				err = writeBuf.WriteByte(value)
+				if err != nil {
+					return nil, err
+				}
+				window[windowPos] = value
+				windowPos = (windowPos + 1) & 0x0fff
+			} else {
+				var packedData uint16
+				err = binary.Read(reader, binary.LittleEndian, &packedData)
+				if err != nil {
+					return nil, err
+				}
+				windowReadPos := packedData >> 4
+				if windowReadPos == 0 {
+					decompressed = writeBuf.Bytes()
+					return decompressed, nil
+				}
+				count := (packedData & 0x0f) + 2
+				for x := 0; x < int(count); x++ {
+					err = writeBuf.WriteByte(window[windowReadPos])
+					if err != nil {
+						return nil, err
+					}
+					window[windowPos] = window[windowReadPos]
+					windowReadPos = (windowReadPos + 1) & 0x0fff
+					windowPos = (windowPos + 1) & 0x0fff
+				}
+			}
+			tag = tag >> 1
+		}
+	}
 	return
 }
 
@@ -173,7 +233,7 @@ func decryptPacket(in []byte) (out []byte, err error) {
 		return
 	}
 	var (
-		check int
+		check   int
 		checkAg uint16
 	)
 	for i := 3; i < len(in)-3; i++ {
@@ -186,8 +246,6 @@ func decryptPacket(in []byte) (out []byte, err error) {
 	}
 	return
 }
-
-
 
 func simpleCrypt(in []byte) []byte {
 	out := make([]byte, len(in))
