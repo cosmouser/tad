@@ -96,6 +96,24 @@ func parsePlayer(r io.Reader) (pb playerBlock, err error) {
 	err = binary.Read(&dbuf, binary.LittleEndian, &pb)
 	return
 }
+func parseStatMsg(r io.Reader) (sm statusMsg, err error) {
+	data, err := loadSection(r)
+	if err != nil {
+		return sm, err
+	}
+	sr := bytes.NewReader(data)
+	b, err := sr.ReadByte()
+	if err != nil {
+		return sm, err
+	}
+	dataLen := len(data)-1
+	sm.Data = make([]byte, dataLen)
+	n, err := sr.Read(sm.Data)
+	if err != nil || n != dataLen {
+		return sm, errors.New("parseStatMsg failed read")
+	}
+	return
+}
 
 func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error) {
 	var buf [14]byte

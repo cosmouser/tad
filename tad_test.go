@@ -2,6 +2,7 @@ package tad
 
 import (
 	"net"
+	"bytes"
 	"os"
 	"path"
 	"strings"
@@ -112,7 +113,7 @@ func TestReadHeaders(t *testing.T) {
 		t.Log(ex.sectorType)
 	}
 	// create players
-	players := []DemoPlayer{}
+	players := make([]DemoPlayer, int(sum.NumPlayers))
 	for i := 0; i < int(sum.NumPlayers); i++ {
 		player, err := parsePlayer(tf)
 		if err != nil {
@@ -127,7 +128,21 @@ func TestReadHeaders(t *testing.T) {
 				t.Errorf("wanted %v, got %v", playerName, string(player.Name[:]))
 			}
 		}
-
+		players[i].Color = player.Color
+		players[i].Side = player.Side
+		players[i].Number = player.Number
+		players[i].Name = string(bytes.TrimRight(player.Name[:], "\x00"))
+	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		sm, err := parseStatMsg(tf)
+		if err != nil {
+			t.Error(err)
+		}
+		players[i].Status = string(sm.Data)
+		s := players[i].Status
+		p := createPacket(s[0], len(s))
+		id := createIdent(p)
+		players[i].orgpid = id.pid
 	}
 	tf.Close()
 }
