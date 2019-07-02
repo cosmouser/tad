@@ -1,4 +1,4 @@
-package ted
+package tad
 
 type summary struct {
 	Magic      [8]byte

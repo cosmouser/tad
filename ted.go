@@ -1,4 +1,4 @@
-package ted
+package tad
 
 import (
 	"bytes"
