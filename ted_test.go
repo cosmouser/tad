@@ -227,14 +227,25 @@ func TestParseUnitSyncData(t *testing.T) {
 		}
 
 	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		_, err := loadSection(tf)
+		if err != nil {
+			t.Error(err)
+		}
+
+	}
 	upd, err := parseUnitSyncData(tf)
 	if err != nil {
 		t.Error(err)
 	}
-	if upd[0x5f958268].InUse != false {
-		t.Error("Helper unit marked as InUse")
+	if upd == nil {
+		t.Error("got nil value for upd map")
 	}
-	if upd[0x3ed65df7].InUse != true {
+	if v, ok := upd[0x5f958268]; !ok || v.InUse != false {
+		t.Error("Helper unit marked as InUse or nil")
+		t.Log(v)
+	}
+	if v, ok := upd[0x3ed65df7]; ok && v.InUse != true {
 		t.Error("0x3ed65df7 unit marked as not InUse")
 	}
 	tf.Close()

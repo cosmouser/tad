@@ -87,6 +87,48 @@ func parsePlayer(r io.Reader) (pb playerBlock, err error) {
 	return
 }
 
+func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error) {
+	var buf [14]byte
+	var n int
+	br := bytes.NewReader(buf[:])
+	data, err := loadSection(r)
+	if err != nil {
+		return units, err
+	}
+	usr := bytes.NewReader(data)
+	units = make(map[uint32]*unitSyncRecord)
+	for err != io.EOF {
+		n, err = usr.Read(buf[:])
+		if n == 14 {
+			if buf[1] == 0x02 {
+				br.Reset(buf[:])
+				tmp := unitSync02{}
+				err = binary.Read(br, binary.LittleEndian, &tmp)
+				if _, ok := units[tmp.ID]; !ok {
+					units[tmp.ID] = &unitSyncRecord{}
+				}
+				units[tmp.ID].ID = tmp.ID
+				units[tmp.ID].CRC = tmp.CRC
+			}
+			if buf[1] == 0x03 {
+				br.Reset(buf[:])
+				tmp := unitSync03{}
+				err = binary.Read(br, binary.LittleEndian, &tmp)
+				if _, ok := units[tmp.ID]; !ok {
+					units[tmp.ID] = &unitSyncRecord{}
+				}
+				units[tmp.ID].ID = tmp.ID
+				units[tmp.ID].Limit = tmp.Limit
+				if tmp.Status != 1 {
+					units[tmp.ID].InUse = true
+				}
+			}
+		}
+	}
+	err = nil
+	return
+}
+
 func simpleCrypt(in []byte) []byte {
 	out := make([]byte, len(in))
 	for i := range in {
