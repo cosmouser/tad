@@ -149,8 +149,19 @@ func TestReadHeaders(t *testing.T) {
 			t.Error(err)
 		}
 		t.Logf("%+v", idn)
+		if i == 1 && (idn.Width != 2560 || idn.Height != 1440) {
+			t.Error("failed to parseIdent properly")
+		}
 		players[i].orgpid = idn.Player1
 	}
+	upd, err := parseUnitSyncData(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	if upd == nil {
+		t.Error("got nil value for unit map")
+	}
+	t.Logf("len of upd: %v", len(upd))
 	tf.Close()
 }
 
