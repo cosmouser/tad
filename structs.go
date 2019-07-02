@@ -43,6 +43,16 @@ type playerBlock struct {
 	Name   [64]byte
 }
 
+type packetRec struct {
+	Time   uint16
+	Sender byte
+	Data   []byte
+}
+
+type savePlayers struct {
+	TimeToDie [10]int
+	Killed    [10]bool
+}
 type identRec struct {
 	Fill1   [139]byte
 	Width   uint16

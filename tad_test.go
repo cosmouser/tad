@@ -2,6 +2,7 @@ package tad
 
 import (
 	"bytes"
+	"io"
 	"net"
 	"os"
 	"path"
@@ -162,6 +163,20 @@ func TestReadHeaders(t *testing.T) {
 		t.Error("got nil value for unit map")
 	}
 	t.Logf("len of upd: %v", len(upd))
+	playerMetadata := savePlayers{}
+	var increment int
+	for err != io.EOF {
+		pr := packetRec{}
+		pr, err = loadMove(tf)
+		if pr.Sender > 10 || pr.Sender < 1 {
+			t.Log("Very odd")
+		} else {
+			playerMetadata.TimeToDie[int(pr.Sender)-1] = increment
+			increment++
+		}
+	}
+	t.Logf("total moves: %d", increment)
+	t.Logf("playerMetadata.TimeToDie: %v", playerMetadata.TimeToDie[:])
 	tf.Close()
 }
 

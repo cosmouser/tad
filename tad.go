@@ -158,7 +158,29 @@ func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error
 	return
 }
 
-// this clicks in the drones automatically and gets something out of the statmsg
+func loadMove(r io.Reader) (pr packetRec, err error) {
+	dat, err := loadSection(r)
+	if err != nil {
+		return pr, err
+	}
+	datr := bytes.NewReader(dat)
+	err = binary.Read(datr, binary.LittleEndian, &pr.Time)
+	if err != nil {
+		return pr, err
+	}
+	sender, err := datr.ReadByte()
+	if err != nil {
+		return pr, err
+	}
+	pr.Sender = sender
+	datLen := len(dat) - 3
+	pr.Data = make([]byte, datLen)
+	if n, err := datr.Read(pr.Data); n != datLen || err != nil {
+		return pr, errors.New("packet read failed")
+	}
+	return
+}
+
 func createIdent(fdata []byte) (idn identRec, err error) {
 	ir := bytes.NewReader(fdata[8:])
 	err = binary.Read(ir, binary.LittleEndian, &idn)
