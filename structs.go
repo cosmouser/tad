@@ -39,6 +39,15 @@ type playerBlock struct {
 	Number byte
 	Name   [32]byte
 }
+// DemoPlayer is the in memory representation of a player
+type DemoPlayer struct {
+	Color  byte
+	Side   byte
+	Number byte
+	Name   string
+	Status string
+	orgpid int32
+}
 type unitSyncRecord struct {
 	ID    uint32
 	CRC   uint32

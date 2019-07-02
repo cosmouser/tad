@@ -111,6 +111,8 @@ func TestReadHeaders(t *testing.T) {
 		}
 		t.Log(ex.sectorType)
 	}
+	// create players
+	players := []DemoPlayer{}
 	for i := 0; i < int(sum.NumPlayers); i++ {
 		player, err := parsePlayer(tf)
 		if err != nil {
