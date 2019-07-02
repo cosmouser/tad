@@ -49,6 +49,9 @@ type unitSync03 struct {
 	Limit  uint16
 }
 
+type statusMessage struct {
+}
+
 // func (s *lobbyChat) sectorType() string {
 // 	return "LobbyChat"
 // }

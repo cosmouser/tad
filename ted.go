@@ -129,6 +129,11 @@ func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error
 	return
 }
 
+// TODO: parseStatusMessage
+func parseStatusMessage(r io.Reader) (sm statusMessage, err error) {
+	return
+}
+
 func simpleCrypt(in []byte) []byte {
 	out := make([]byte, len(in))
 	for i := range in {
