@@ -43,6 +43,23 @@ type playerBlock struct {
 	Name   [64]byte
 }
 
+type identRec struct {
+	Fill1   [139]byte
+	Width   uint16
+	Height  uint16
+	Fill3   byte
+	Player1 int32
+	Data2   [7]byte
+	Clicked byte
+	Fill2   [9]byte
+	Data5   uint16
+	HiVer   byte
+	LoVer   byte
+	Data3   [17]byte
+	Player2 int32
+	Data4   byte
+}
+
 // DemoPlayer is the in memory representation of a player
 type DemoPlayer struct {
 	Color  byte

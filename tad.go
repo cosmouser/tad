@@ -158,6 +158,13 @@ func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error
 	return
 }
 
+// this clicks in the drones automatically and gets something out of the statmsg
+func createIdent(fdata []byte) (idn identRec, err error) {
+	ir := bytes.NewReader(fdata[8:])
+	err = binary.Read(ir, binary.LittleEndian, &idn)
+	return
+}
+
 func createPacket(raw []byte) (out []byte, err error) {
 	tmp := []byte{}
 	tmp, err = decryptPacket(raw)
@@ -174,7 +181,10 @@ func decompressLZ77(compressed []byte) (decompressed []byte, err error) {
 	if compressed[0] != 0x04 {
 		return compressed, nil
 	}
-	if n, err := writeBuf.Write(compressed[:3]); n != 3 || err != nil {
+	if err := writeBuf.WriteByte(0x03); err != nil {
+		return nil, err
+	}
+	if n, err := writeBuf.Write(compressed[1:3]); n != 2 || err != nil {
 		return nil, err
 	}
 	reader := bytes.NewReader(compressed[3:])

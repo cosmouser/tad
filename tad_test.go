@@ -2,7 +2,6 @@ package tad
 
 import (
 	"bytes"
-	"encoding/hex"
 	"net"
 	"os"
 	"path"
@@ -145,9 +144,12 @@ func TestReadHeaders(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		t.Logf("\n%v", hex.Dump(p))
-		//id := createIdent(p)
-		//players[i].orgpid = id.pid
+		idn, err := createIdent(p)
+		if err != nil {
+			t.Error(err)
+		}
+		t.Logf("%+v", idn)
+		players[i].orgpid = idn.Player1
 	}
 	tf.Close()
 }
