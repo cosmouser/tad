@@ -38,7 +38,7 @@ type addressBlock struct {
 
 type playerBlock struct {
 	Color  byte
-	Side   byte
+	Side   byte // 0=arm,1=core,2=watch
 	Number byte
 	Name   [64]byte
 }
