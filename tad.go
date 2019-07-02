@@ -289,6 +289,13 @@ func simpleCrypt(in []byte) []byte {
 	}
 	return out
 }
+func getGameOffset(rs io.ReadSeeker) int64 {
+	n, err := rs.Seek(0, io.SeekCurrent)
+	if err != nil {
+		panic(err)
+	}
+	return n
+}
 
 func splitPacket(data []byte, smartpak bool) (out []byte, err error) {
 
