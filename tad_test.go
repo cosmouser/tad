@@ -57,7 +57,15 @@ func TestParseLobbyChat(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	clog, err := parseLobbyChat(tf)
+	dat, err := loadSection(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	ext1, err := parseExtra(dat)
+	if err != nil {
+		t.Error(err)
+	}
+	clog, err := parseLobbyChat(ext1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -92,7 +100,7 @@ func TestReadHeaders(t *testing.T) {
 	}
 	eh, err := loadSection(tf)
 	numSectors := int(eh[0])
-	for i := 1; i < numSectors; i++ {
+	for i := 0; i < numSectors; i++ {
 		sec, err := loadSection(tf)
 		if err != nil {
 			t.Error(err)
@@ -102,7 +110,21 @@ func TestReadHeaders(t *testing.T) {
 			t.Error(err)
 		}
 		t.Log(ex.sectorType)
-
+	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		player, err := parsePlayer(tf)
+		if err != nil {
+			t.Error(err)
+		}
+		if int(player.Number) != i+1 {
+			t.Error("player out of order")
+		}
+		if i == 1 {
+			playerName := "didou"
+			if strings.Index(string(player.Name[:]), playerName) != 0 {
+				t.Errorf("wanted %v, got %v", playerName, string(player.Name[:]))
+			}
+		}
 
 	}
 	tf.Close()
@@ -172,7 +194,7 @@ func TestParsePlayers(t *testing.T) {
 		t.Error(err)
 	}
 	// skip lobbychat
-	_, err = parseLobbyChat(tf)
+	_, err = loadSection(tf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -231,7 +253,7 @@ func TestParseStatusMessage(t *testing.T) {
 		t.Error(err)
 	}
 	// skip lobbychat
-	_, err = parseLobbyChat(tf)
+	_, err = loadSection(tf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -288,7 +310,7 @@ func TestParseUnitSyncData(t *testing.T) {
 		t.Error(err)
 	}
 	// skip lobbychat
-	_, err = parseLobbyChat(tf)
+	_, err = loadSection(tf)
 	if err != nil {
 		t.Error(err)
 	}
