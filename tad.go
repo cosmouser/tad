@@ -289,3 +289,8 @@ func simpleCrypt(in []byte) []byte {
 	}
 	return out
 }
+
+func splitPacket(data []byte, smartpak bool) (out []byte, err error) {
+
+	return
+}

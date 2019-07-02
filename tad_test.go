@@ -164,6 +164,7 @@ func TestReadHeaders(t *testing.T) {
 	}
 	t.Logf("len of upd: %v", len(upd))
 	playerMetadata := savePlayers{}
+	n := getGameOffset(tf)
 	var increment int
 	for err != io.EOF {
 		pr := packetRec{}
