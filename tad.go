@@ -53,7 +53,7 @@ func parseSummary(r io.Reader) (sum summary, err error) {
 	if n, err := dbuf.Write(data); n != len(data) || err != nil {
 		return sum, errors.New("failed to write summary data to buffer")
 	}
-	fill := make([]byte, 32)
+	fill := make([]byte, 64)
 	if n, err := dbuf.Write(fill); n != len(fill) || err != nil {
 		return sum, errors.New("failed to write summary data to buffer")
 	}
@@ -89,7 +89,7 @@ func parsePlayer(r io.Reader) (pb playerBlock, err error) {
 	if n, err := dbuf.Write(data); n != len(data) || err != nil {
 		return pb, errors.New("failed to write player data to buffer")
 	}
-	fill := make([]byte, 32)
+	fill := make([]byte, 64)
 	if n, err := dbuf.Write(fill); n != len(fill) || err != nil {
 		return pb, errors.New("failed to write player data to buffer")
 	}
@@ -106,6 +106,7 @@ func parseStatMsg(r io.Reader) (sm statusMsg, err error) {
 	if err != nil {
 		return sm, err
 	}
+	sm.Number = b
 	dataLen := len(data)-1
 	sm.Data = make([]byte, dataLen)
 	n, err := sr.Read(sm.Data)
@@ -157,10 +158,36 @@ func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error
 	return
 }
 
-// TODO: parseStatusMessage
-func parseStatusMessage(r io.Reader) (sm statusMessage, err error) {
+func createPacket(raw []byte) (out []byte, err error) {
+	out, err = decryptPacket(raw)
 	return
 }
+
+func decryptPacket(in []byte) (out []byte, err error) {
+	out = make([]byte, len(in))
+	for i := range in {
+		out[i] = in[i]
+	}
+	if len(in) < 4 {
+		out = append(out, '\x06')
+		return
+	}
+	var (
+		check int
+		checkAg uint16
+	)
+	for i := 3; i < len(in)-3; i++ {
+		check = check + int(in[i])
+		out[i] = in[i] ^ byte(i)
+	}
+	checkAg = binary.LittleEndian.Uint16(in[1:3])
+	if check != int(checkAg) {
+		return nil, errors.New("decrypt found error in checksum")
+	}
+	return
+}
+
+
 
 func simpleCrypt(in []byte) []byte {
 	out := make([]byte, len(in))

@@ -36,6 +36,7 @@ func TestParseSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	t.Logf("%+v", s)
 	mapName := "[V] Dark Comet"
 	if strings.Index(string(s.MapName[:]), mapName) != 0 {
 		t.Errorf("wanted %v, got %v", mapName, string(s.MapName[:]))
@@ -139,10 +140,13 @@ func TestReadHeaders(t *testing.T) {
 			t.Error(err)
 		}
 		players[i].Status = string(sm.Data)
-		s := players[i].Status
-		p := createPacket(s[0], len(s))
-		id := createIdent(p)
-		players[i].orgpid = id.pid
+		p, err := createPacket(sm.Data)
+		if err != nil {
+			t.Error(err)
+		}
+		t.Log(p)
+		//id := createIdent(p)
+		//players[i].orgpid = id.pid
 	}
 	tf.Close()
 }
@@ -253,63 +257,6 @@ func TestParsePlayers(t *testing.T) {
 
 	}
 	tf.Close()
-}
-func TestParseStatusMessage(t *testing.T) {
-	tf, err := os.Open(sample1)
-	if err != nil {
-		t.Error(err)
-	}
-	// skip the summary
-	sum, err := parseSummary(tf)
-	if err != nil {
-		t.Error(err)
-	}
-	// skip the extra header
-	_, err = loadSection(tf)
-	if err != nil {
-		t.Error(err)
-	}
-	// skip lobbychat
-	_, err = loadSection(tf)
-	if err != nil {
-		t.Error(err)
-	}
-	// skip version
-	_, err = loadSection(tf)
-	if err != nil {
-		t.Error(err)
-	}
-	// skip date
-	_, err = loadSection(tf)
-	if err != nil {
-		t.Error(err)
-	}
-	// skip startedfrom sector
-	_, err = loadSection(tf)
-	if err != nil {
-		t.Error(err)
-	}
-	for i := 0; i < int(sum.NumPlayers); i++ {
-		_, err := parseAddressBlock(tf)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-	for i := 0; i < int(sum.NumPlayers); i++ {
-		_, err := parsePlayer(tf)
-		if err != nil {
-			t.Error(err)
-		}
-
-	}
-	for i := 0; i < int(sum.NumPlayers); i++ {
-		msg, err := parseStatusMessage(tf)
-		if err != nil {
-			t.Error(err)
-		}
-		t.Logf("%+v", msg)
-
-	}
 }
 func TestParseUnitSyncData(t *testing.T) {
 	tf, err := os.Open(sample1)
