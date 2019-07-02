@@ -17,12 +17,16 @@ type summary struct {
 	Version    [2]byte
 	NumPlayers uint8
 	MaxUnits   uint16
-	MapName    [32]byte
+	MapName    [64]byte
 }
 
 type extraSector struct {
-	sectorType
+	sectorType // int32
 	data []byte
+}
+type statusMsg struct {
+	Number byte
+	Data []byte
 }
 
 type lobbyChat struct {
@@ -37,7 +41,7 @@ type playerBlock struct {
 	Color  byte
 	Side   byte
 	Number byte
-	Name   [32]byte
+	Name   [64]byte
 }
 // DemoPlayer is the in memory representation of a player
 type DemoPlayer struct {
