@@ -209,13 +209,13 @@ func TestReadHeaders(t *testing.T) {
 	if compMap[0x03] != 2421 {
 		t.Errorf("expected 2421 non-compressed moves, got %v", compMap[0x03])
 	}
-	// for k, v := range pcps {
-	// 	t.Logf("%02x: %4d", k, v)
-	// }
+	for k, v := range pcps {
+		t.Logf("%02x: %4d", k, v)
+	}
 	if pcps[0x09] <= 8 {
 		t.Error("Expected more 0x09 packets")
 	}
-	if pcps[0x28] <= 122 {
+	if pcps[0x28] <= 59 {
 		t.Error("Expected more 0x28 packets")
 	}
 	tf.Close()
