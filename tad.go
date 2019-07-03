@@ -191,12 +191,12 @@ func createPacket(raw []byte) (out []byte, err error) {
 	tmp := []byte{}
 	tmp, err = decryptPacket(raw)
 	if tmp[0] == 0x04 {
-		out, err = decompressLZ77(tmp)
+		out, err = decompressLZ77(tmp, 3)
 		return
 	}
 	return tmp, nil
 }
-func decompressLZ77(compressed []byte) (decompressed []byte, err error) {
+func decompressLZ77(compressed []byte, prefixLen int) (decompressed []byte, err error) {
 	var window [4096]byte
 	var windowPos = 1
 	var writeBuf bytes.Buffer
@@ -206,10 +206,12 @@ func decompressLZ77(compressed []byte) (decompressed []byte, err error) {
 	if err := writeBuf.WriteByte(0x03); err != nil {
 		return nil, err
 	}
-	if n, err := writeBuf.Write(compressed[1:3]); n != 2 || err != nil {
-		return nil, err
+	if prefixLen > 1 {
+		if n, err := writeBuf.Write(compressed[1:prefixLen]); n != prefixLen-1 || err != nil {
+			return nil, err
+		}
 	}
-	reader := bytes.NewReader(compressed[3:])
+	reader := bytes.NewReader(compressed[prefixLen:])
 	for {
 		tag, err := reader.ReadByte()
 		if err != nil {

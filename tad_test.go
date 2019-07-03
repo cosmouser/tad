@@ -2,6 +2,7 @@ package tad
 
 import (
 	"bytes"
+	"encoding/hex"
 	"io"
 	"net"
 	"os"
@@ -174,7 +175,7 @@ func TestReadHeaders(t *testing.T) {
 		pr := packetRec{}
 		pr, err = loadMove(tf)
 		if pr.Sender > 10 || pr.Sender < 1 {
-			t.Log("Very odd")
+			t.Log("very odd")
 		} else {
 			playerMetadata.TimeToDie[int(pr.Sender)-1] = increment
 			increment++
@@ -182,6 +183,38 @@ func TestReadHeaders(t *testing.T) {
 	}
 	t.Logf("total moves: %d", increment)
 	t.Logf("playerMetadata.TimeToDie: %v", playerMetadata.TimeToDie[:])
+	nExpected2, err := tf.Seek(gameOffset, io.SeekStart)
+	if err != nil || nExpected2 != gameOffset {
+		t.Error("seek to gameOffset failed")
+	}
+	compMap := make(map[byte]int)
+	packetCountPreSplit := make(map[byte]int)
+	increment = 1
+	for err != io.EOF {
+		pr := packetRec{}
+		pr, err = loadMove(tf)
+		if len(pr.Data) > 0 {
+			compMap[pr.Data[0]]++
+			out := pr.Data
+			if pr.Data[0] == 0x04 {
+				out, err = decompressLZ77(pr.Data, 1)
+				if err != nil {
+					t.Errorf("decompression failed on move %d from Sender: %v with err %v using Data: %v", increment, pr.Sender, err, hex.Dump(pr.Data))
+				}
+			}
+			packetCountPreSplit[out[1]]++
+		}
+		increment++
+	}
+	if compMap[0x04] != 231 {
+		t.Errorf("expected 231 compressed moves, got %v", compMap[0x04])
+	}
+	if compMap[0x03] != 2421 {
+		t.Errorf("expected 2421 non-compressed moves, got %v", compMap[0x03])
+	}
+	for k, v := range packetCountPreSplit {
+		t.Logf("%02x: %2d", k, v)
+	}
 	tf.Close()
 }
 
