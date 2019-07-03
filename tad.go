@@ -301,16 +301,30 @@ func getGameOffset(rs io.ReadSeeker) int64 {
 }
 
 func deserialize(move packetRec) (subs [][]byte, err error) {
-	tmp := move.Data
+	tmp := []byte{}
 	if tmp[0] == 0x04 {
 		tmp, err = decompressLZ77(move.Data, 1)
 		if err != nil {
 			return nil, errors.New("deserializer failed read")
 		}
 	}
+	readPos := 0
+	for {
+		out := splitPacket(tmp[readPos:], false)
+		if len(out) == 0 {
+			break
+		} else {
+			readPos = len(out)
+		}
+		subs = append(subs, out)
+	}
 	return
 }
-func splitPacket(data []byte, smartpak bool) (out []byte, err error) {
+func splitPacket(data []byte, smartpak bool) (out []byte) {
+	if len(data) == 0 {
+		out = []byte{}
+		return
+	}
 	plGuide := map[byte]int{
 		0x2: 13,
 		0x6: 1,
@@ -359,11 +373,21 @@ func splitPacket(data []byte, smartpak bool) (out []byte, err error) {
 	pl := plGuide[data[0]]
 	if (data[0] == 0xff || data[0] == 0xfe || data[0] == 0xfd) && !smartpak {
 		log.Warning("warning erroneous compression assumption")
-		return
 	}
 	if len(data) < pl {
 		log.Warning("error subpacket longer than packet")
+		pl = 0
+	}
+	if pl == 0 {
+		out = []byte{}
 		return
+	} else {
+		out = make([]byte, pl)
+		dr := bytes.NewReader(data)
+		bytesRead, err := dr.Read(out)
+		if bytesRead != pl || err != nil {
+			log.Fatalf("failed read for %02x packet", data[0])
+		}
 	}
 	return
 }
