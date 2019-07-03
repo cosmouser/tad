@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"io"
+	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io"
 )
 
 // loadSection gets the uint16 length and reads that minus 2 bytes
@@ -326,25 +327,103 @@ func deserialize(move packetRec) (subs [][]byte, err error) {
 	}
 	return
 }
+func playbackMsg(sender byte, data []byte, names map[uint16]string, unitmem map[uint16]uint16) string {
+	tap, err := loadTAPacket(data)
+	if err != nil && err != io.EOF {
+		log.Fatal(err)
+	}
+	if err != nil {
+		return ""
+	}
+	msg := fmt.Sprintf("player %d sent %v", sender, tap.printMessage(names, unitmem))
+	switch tap.GetMarker() {
+	case 0x09:
+		unitID := tap.(*packet0x09).UnitID
+		netID := tap.(*packet0x09).NetID
+		unitmem[unitID] = netID
+	}
+	return msg
+}
+
+func loadTAPacket(pdata []byte) (taPacket, error) {
+	pr := bytes.NewReader(pdata)
+	switch pdata[0] {
+	case 0x28:
+		tmp := &packet0x28{}
+		err := binary.Read(pr, binary.LittleEndian, tmp)
+		if err != nil {
+			return tmp, err
+		}
+		return tmp, nil
+	case 0x09:
+		tmp := &packet0x09{}
+		err := binary.Read(pr, binary.LittleEndian, tmp)
+		if err != nil {
+			return tmp, err
+		}
+		return tmp, nil
+	case 0x0c:
+		tmp := &packet0x0c{}
+		err := binary.Read(pr, binary.LittleEndian, tmp)
+		if err != nil {
+			return tmp, err
+		}
+		return tmp, nil
+	case 0xfc:
+		tmp := &packet0xfc{}
+		err := binary.Read(pr, binary.LittleEndian, tmp)
+		if err != nil {
+			return tmp, err
+		}
+		return tmp, nil
+	case 0x12:
+		tmp := &packet0x12{}
+		err := binary.Read(pr, binary.LittleEndian, tmp)
+		if err != nil {
+			return tmp, err
+		}
+		return tmp, nil
+	case 0x0b:
+		tmp := &packet0x0b{}
+		err := binary.Read(pr, binary.LittleEndian, tmp)
+		if err != nil {
+			return tmp, err
+		}
+		return tmp, nil
+	}
+	tmp := &packetDefault{}
+	b, err := pr.ReadByte()
+	if err != nil {
+		return tmp, err
+	}
+	tmp.Marker = b
+	tmp.Data = make([]byte, len(pdata)-1)
+	_, err = pr.Read(tmp.Data)
+	if err != nil {
+		return tmp, err
+	}
+	return tmp, nil
+}
+
 func splitPacket(data []byte) (out []byte) {
 	if len(data) == 0 {
 		out = []byte{}
 		return
 	}
 	plGuide := map[byte]int{
-		0x2: 13,
-		0x6: 1,
-		0x7: 1,
+		0x2:  13,
+		0x6:  1,
+		0x7:  1,
 		0x20: 192,
 		0x1a: 14,
 		0x17: 2,
 		0x18: 2,
 		0x15: 1,
-		0x8: 1,
-		0x5: 65,
-		'&': 41,
-		'"': 6,
-		'*': 2,
+		0x8:  1,
+		0x5:  65,
+		'&':  41,
+		'"':  6,
+		'*':  2,
 		0x1e: 2,
 		0x09: 23,
 		0x11: 4,
@@ -374,9 +453,9 @@ func splitPacket(data []byte) (out []byte) {
 		0xf6: 1,
 	}
 	if len(data) > 2 {
-		plGuide[','] = int(data[1])+int(data[2])*256
-		plGuide[0xfd] = (int(data[1])+int(data[2])*256)-4
-		plGuide[0xfb] = int(data[1])+3
+		plGuide[','] = int(data[1]) + int(data[2])*256
+		plGuide[0xfd] = (int(data[1]) + int(data[2])*256) - 4
+		plGuide[0xfb] = int(data[1]) + 3
 	}
 	pl := plGuide[data[0]]
 	if pl == 0 {

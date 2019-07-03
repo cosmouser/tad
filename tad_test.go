@@ -133,7 +133,7 @@ func TestPlaybackMessages(t *testing.T) {
 		}
 		players[i].orgpid = idn.Player1
 	}
-	upd, err := parseUnitSyncData(tf)
+	_, err = parseUnitSyncData(tf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -142,8 +142,9 @@ func TestPlaybackMessages(t *testing.T) {
 		t.Error(err)
 	}
 	gd := gob.NewDecoder(gobf)
+	unitmem := make(map[uint16]uint16)
 	unitnames := make(map[uint16]string)
-	err = gd.Decode(unitnames)
+	err = gd.Decode(&unitnames)
 	if err != nil {
 		t.Error(err)
 	}
@@ -158,7 +159,7 @@ func TestPlaybackMessages(t *testing.T) {
 			t.Error(err)
 		}
 		for i := range subpackets {
-			playbackMsg(pr.Sender, subpackets[i], players, unitnames, unitmem)
+			t.Log(playbackMsg(pr.Sender, subpackets[i], unitnames, unitmem))
 		}
 		if pr.Sender > 10 || pr.Sender < 1 {
 		} else {

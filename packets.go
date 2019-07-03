@@ -6,6 +6,19 @@ import (
 
 type taPacket interface {
 	printMessage(map[uint16]string, map[uint16]uint16) string
+	GetMarker() byte
+}
+
+type packetDefault struct {
+	Marker byte
+	Data   []byte
+}
+
+func (p *packetDefault) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: %v", p.Marker, p.Data)
+}
+func (p *packetDefault) GetMarker() byte {
+	return p.Marker
 }
 
 // Player status
@@ -26,6 +39,19 @@ type packet0x28 struct {
 	TotalM    float32
 	Unknown2  [4]byte
 	ExcessM   float32
+}
+
+func (p *packet0x28) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: reported %d kills, %d losses, StoredM: %f, StoredE: %f and Status: %v",
+		p.Marker,
+		p.Kills,
+		p.Losses,
+		p.StoredM,
+		p.StoredE,
+		p.Status)
+}
+func (p *packet0x28) GetMarker() byte {
+	return p.Marker
 }
 
 // Starting to build unit
@@ -52,6 +78,9 @@ func (p *packet0x09) printMessage(unitNames map[uint16]string, unitMem map[uint1
 		p.YPos,
 		p.ZPos)
 }
+func (p *packet0x09) GetMarker() byte {
+	return p.Marker
+}
 
 // Unit destroyed
 type packet0x0c struct {
@@ -70,6 +99,9 @@ func (p *packet0x0c) printMessage(unitNames map[uint16]string, unitMem map[uint1
 		unitNames[unitMem[p.Destroyed]],
 		p.Destroyed)
 }
+func (p *packet0x0c) GetMarker() byte {
+	return p.Marker
+}
 
 // Map view position
 type packet0xfc struct {
@@ -83,6 +115,9 @@ func (p *packet0xfc) printMessage(unitNames map[uint16]string, unitMem map[uint1
 		p.Marker,
 		p.XPos,
 		p.YPos)
+}
+func (p *packet0xfc) GetMarker() byte {
+	return p.Marker
 }
 
 // Unit has been built
@@ -101,11 +136,15 @@ func (p *packet0x12) printMessage(unitNames map[uint16]string, unitMem map[uint1
 		p.BuiltByID)
 }
 
+func (p *packet0x12) GetMarker() byte {
+	return p.Marker
+}
+
 // Damage
 type packet0x0b struct {
 	Marker       byte
-	DamagerID    uint16
 	DamagedID    uint16
+	DamagerID    uint16
 	Damage       uint16
 	Unknown      byte
 	WeaponNumber uint8
@@ -120,6 +159,9 @@ func (p *packet0x0b) printMessage(unitNames map[uint16]string, unitMem map[uint1
 		unitNames[unitMem[p.DamagedID]],
 		p.DamagedID,
 		p.WeaponNumber)
+}
+func (p *packet0x0b) GetMarker() byte {
+	return p.Marker
 }
 
 // Unknown
