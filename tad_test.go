@@ -2,7 +2,6 @@ package tad
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -82,6 +81,83 @@ func TestParseLobbyChat(t *testing.T) {
 	for i, v := range clog.Messages {
 		t.Logf("message %d: %v", i, v)
 	}
+	tf.Close()
+}
+func TestPlaybackMessages(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	sum, err := parseSummary(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	eh, err := loadSection(tf)
+	numSectors := int(eh[0])
+	for i := 0; i < numSectors; i++ {
+		sec, err := loadSection(tf)
+		if err != nil {
+			t.Error(err)
+		}
+		_, err = parseExtra(sec)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	// create players
+	players := make([]DemoPlayer, int(sum.NumPlayers))
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		player, err := parsePlayer(tf)
+		if err != nil {
+			t.Error(err)
+		}
+		players[i].Color = player.Color
+		players[i].Side = player.Side
+		players[i].Number = player.Number
+		players[i].Name = string(bytes.TrimRight(player.Name[:], "\x00"))
+	}
+	for i := 0; i < int(sum.NumPlayers); i++ {
+		sm, err := parseStatMsg(tf)
+		if err != nil {
+			t.Error(err)
+		}
+		players[i].Status = string(sm.Data)
+		p, err := createPacket(sm.Data)
+		if err != nil {
+			t.Error(err)
+		}
+		idn, err := createIdent(p)
+		if err != nil {
+			t.Error(err)
+		}
+		players[i].orgpid = idn.Player1
+	}
+	upd, err := parseUnitSyncData(tf)
+	if err != nil {
+		t.Error(err)
+	}
+	if upd == nil {
+		t.Error("got nil value for unit map")
+	}
+	playerMetadata := savePlayers{}
+	var increment int
+	for err != io.EOF {
+		pr := packetRec{}
+		pr, err = loadMove(tf)
+		subpackets, err := deserialize(pr)
+		if err != nil {
+			t.Error(err)
+		}
+		for i := range subpackets {
+			playbackMsg(pr.Sender, subpackets[i], players, unitnames, unitmem)
+		}
+		if pr.Sender > 10 || pr.Sender < 1 {
+		} else {
+			playerMetadata.TimeToDie[int(pr.Sender)-1] = increment
+			increment++
+		}
+	}
+	t.Logf("total moves: %d", increment)
 	tf.Close()
 }
 
@@ -219,39 +295,39 @@ func TestReadHeaders(t *testing.T) {
 	if pcps[0x28] <= 59 {
 		t.Error("Expected more 0x28 packets")
 	}
-	// packet hunting section
-	// create packet dumps per type
-	fds := make(map[byte]*os.File)
-	for k, v := range pcps {
-		fp, err := os.Create(path.Join("tmp", fmt.Sprintf("%02x_%d.hexdump", k, v)))
-		if err != nil {
-			t.Error(err)
-		}
-		fds[k] = fp
-	}
-	nExpected2, err = tf.Seek(gameOffset, io.SeekStart)
-	if err != nil || nExpected2 != gameOffset {
-		t.Error("seek to gameOffset failed")
-	}
-	for err != io.EOF {
-		pr := packetRec{}
-		pr, err = loadMove(tf)
-		if len(pr.Data) > 0 {
-			subpackets, err := deserialize(pr)
-			if err != nil {
-				t.Error(err)
-			}
-			for i := range subpackets {
-				_, err := fds[subpackets[i][0]].Write(subpackets[i])
-				if err != nil {
-					t.Error(err)
-				}
-			}
-		}
-	}
-	for _, v := range fds {
-		v.Close()
-	}
+	// // packet hunting section
+	// // create packet dumps per type
+	// fds := make(map[byte]*os.File)
+	// for k, v := range pcps {
+	// 	fp, err := os.Create(path.Join("tmp", fmt.Sprintf("%02x_%d.hexdump", k, v)))
+	// 	if err != nil {
+	// 		t.Error(err)
+	// 	}
+	// 	fds[k] = fp
+	// }
+	// nExpected2, err = tf.Seek(gameOffset, io.SeekStart)
+	// if err != nil || nExpected2 != gameOffset {
+	// 	t.Error("seek to gameOffset failed")
+	// }
+	// for err != io.EOF {
+	// 	pr := packetRec{}
+	// 	pr, err = loadMove(tf)
+	// 	if len(pr.Data) > 0 {
+	// 		subpackets, err := deserialize(pr)
+	// 		if err != nil {
+	// 			t.Error(err)
+	// 		}
+	// 		for i := range subpackets {
+	// 			_, err := fds[subpackets[i][0]].Write(subpackets[i])
+	// 			if err != nil {
+	// 				t.Error(err)
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// for _, v := range fds {
+	// 	v.Close()
+	// }
 	tf.Close()
 }
 
