@@ -1,5 +1,13 @@
 package tad
 
+import (
+	"fmt"
+)
+
+type taPacket interface {
+	printMessage(map[uint16]string, map[uint16]uint16) string
+}
+
 // Player status
 type packet0x28 struct {
 	Marker    byte
@@ -35,6 +43,16 @@ type packet0x09 struct {
 	Unknown5 [4]byte
 }
 
+func (p *packet0x09) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: started building a %v  at X: %v, Y: %v, Z: %v and assigned it an ID of %v",
+		p.Marker,
+		unitNames[p.NetID],
+		p.UnitID,
+		p.XPos,
+		p.YPos,
+		p.ZPos)
+}
+
 // Unit destroyed
 type packet0x0c struct {
 	Marker    byte
@@ -44,6 +62,15 @@ type packet0x0c struct {
 	Unkonwn2  uint16
 }
 
+func (p *packet0x0c) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: %v (%04x) destroyed %v (%04x)",
+		p.Marker,
+		unitNames[unitMem[p.Destroyer]],
+		p.Destroyer,
+		unitNames[unitMem[p.Destroyed]],
+		p.Destroyed)
+}
+
 // Map view position
 type packet0xfc struct {
 	Marker byte
@@ -51,11 +78,27 @@ type packet0xfc struct {
 	YPos   uint16
 }
 
+func (p *packet0xfc) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: moved screen to X: %v, Y: %v",
+		p.Marker,
+		p.XPos,
+		p.YPos)
+}
+
 // Unit has been built
 type packet0x12 struct {
 	Marker    byte
 	BuiltID   uint16
 	BuiltByID uint16
+}
+
+func (p *packet0x12) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: %v (%04x) was built in part or in full by %v (%04x)",
+		p.Marker,
+		unitNames[unitMem[p.BuiltID]],
+		p.BuiltID,
+		unitNames[unitMem[p.BuiltByID]],
+		p.BuiltByID)
 }
 
 // Damage
@@ -66,6 +109,17 @@ type packet0x0b struct {
 	Damage       uint16
 	Unknown      byte
 	WeaponNumber uint8
+}
+
+func (p *packet0x0b) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: %v (%04x) dealt %d damage to %v (%04x) with weapon %d",
+		p.Marker,
+		unitNames[unitMem[p.DamagerID]],
+		p.DamagerID,
+		p.Damage,
+		unitNames[unitMem[p.DamagedID]],
+		p.DamagedID,
+		p.WeaponNumber)
 }
 
 // Unknown
@@ -82,4 +136,19 @@ type packet0x11 struct {
 	Marker  byte
 	UnitID  uint16
 	Unknown byte
+}
+
+// Explosions ("displayed in wrong place?" - SY)
+type packet0x10 struct {
+	Marker    byte
+	UnitID    uint16
+	Unknown1  byte
+	Unknown2  byte
+	Unknown3  byte
+	Unknown4  uint16
+	Unknown5  uint16
+	Unknown6  uint16
+	Unknown8  uint32
+	Unknown9  uint32
+	Unknown10 uint16
 }

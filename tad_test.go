@@ -2,6 +2,7 @@ package tad
 
 import (
 	"bytes"
+	"encoding/gob"
 	"io"
 	"net"
 	"os"
@@ -136,9 +137,17 @@ func TestPlaybackMessages(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if upd == nil {
-		t.Error("got nil value for unit map")
+	gobf, err := os.Open("taesc900.gob")
+	if err != nil {
+		t.Error(err)
 	}
+	gd := gob.NewDecoder(gobf)
+	unitnames := make(map[uint16]string)
+	err = gd.Decode(unitnames)
+	if err != nil {
+		t.Error(err)
+	}
+	gobf.Close()
 	playerMetadata := savePlayers{}
 	var increment int
 	for err != io.EOF {
