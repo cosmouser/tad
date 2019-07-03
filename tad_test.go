@@ -2,6 +2,7 @@ package tad
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -217,6 +218,39 @@ func TestReadHeaders(t *testing.T) {
 	}
 	if pcps[0x28] <= 59 {
 		t.Error("Expected more 0x28 packets")
+	}
+	// packet hunting section
+	// create packet dumps per type
+	fds := make(map[byte]*os.File)
+	for k, v := range pcps {
+		fp, err := os.Create(path.Join("tmp", fmt.Sprintf("%02x_%d.hexdump", k, v)))
+		if err != nil {
+			t.Error(err)
+		}
+		fds[k] = fp
+	}
+	nExpected2, err = tf.Seek(gameOffset, io.SeekStart)
+	if err != nil || nExpected2 != gameOffset {
+		t.Error("seek to gameOffset failed")
+	}
+	for err != io.EOF {
+		pr := packetRec{}
+		pr, err = loadMove(tf)
+		if len(pr.Data) > 0 {
+			subpackets, err := deserialize(pr)
+			if err != nil {
+				t.Error(err)
+			}
+			for i := range subpackets {
+				_, err := fds[subpackets[i][0]].Write(subpackets[i])
+				if err != nil {
+					t.Error(err)
+				}
+			}
+		}
+	}
+	for _, v := range fds {
+		v.Close()
 	}
 	tf.Close()
 }
