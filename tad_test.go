@@ -2,7 +2,6 @@ package tad
 
 import (
 	"bytes"
-	"encoding/hex"
 	"io"
 	"net"
 	"os"
@@ -109,11 +108,10 @@ func TestReadHeaders(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		ex, err := parseExtra(sec)
+		_, err = parseExtra(sec)
 		if err != nil {
 			t.Error(err)
 		}
-		t.Log(ex.sectorType)
 	}
 	// create players
 	players := make([]DemoPlayer, int(sum.NumPlayers))
@@ -150,7 +148,7 @@ func TestReadHeaders(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		t.Logf("%+v", idn)
+		// t.Logf("%+v", idn)
 		if i == 1 && (idn.Width != 2560 || idn.Height != 1440) {
 			t.Error("failed to parseIdent properly")
 		}
@@ -188,21 +186,20 @@ func TestReadHeaders(t *testing.T) {
 		t.Error("seek to gameOffset failed")
 	}
 	compMap := make(map[byte]int)
-	packetCountPreSplit := make(map[byte]int)
+	pcps := make(map[byte]int)
 	increment = 1
 	for err != io.EOF {
 		pr := packetRec{}
 		pr, err = loadMove(tf)
 		if len(pr.Data) > 0 {
 			compMap[pr.Data[0]]++
-			out := pr.Data
-			if pr.Data[0] == 0x04 {
-				out, err = decompressLZ77(pr.Data, 1)
-				if err != nil {
-					t.Errorf("decompression failed on move %d from Sender: %v with err %v using Data: %v", increment, pr.Sender, err, hex.Dump(pr.Data))
-				}
+			subpackets, err := deserialize(pr)
+			if err != nil {
+				t.Error(err)
 			}
-			packetCountPreSplit[out[1]]++
+			for i := range subpackets {
+				pcps[subpackets[i][0]]++
+			}
 		}
 		increment++
 	}
@@ -212,8 +209,14 @@ func TestReadHeaders(t *testing.T) {
 	if compMap[0x03] != 2421 {
 		t.Errorf("expected 2421 non-compressed moves, got %v", compMap[0x03])
 	}
-	for k, v := range packetCountPreSplit {
-		t.Logf("%02x: %2d", k, v)
+	// for k, v := range pcps {
+	// 	t.Logf("%02x: %4d", k, v)
+	// }
+	if pcps[0x09] <= 8 {
+		t.Error("Expected more 0x09 packets")
+	}
+	if pcps[0x28] <= 122 {
+		t.Error("Expected more 0x28 packets")
 	}
 	tf.Close()
 }

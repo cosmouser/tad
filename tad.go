@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	log "github.com/sirupsen/logrus"
 )
 
 // loadSection gets the uint16 length and reads that minus 2 bytes
@@ -299,7 +300,70 @@ func getGameOffset(rs io.ReadSeeker) int64 {
 	return n
 }
 
+func deserialize(move packetRec) (subs [][]byte, err error) {
+	tmp := move.Data
+	if tmp[0] == 0x04 {
+		tmp, err = decompressLZ77(move.Data, 1)
+		if err != nil {
+			return nil, errors.New("deserializer failed read")
+		}
+	}
+	return
+}
 func splitPacket(data []byte, smartpak bool) (out []byte, err error) {
-
+	plGuide := map[byte]int{
+		0x2: 13,
+		0x6: 1,
+		0x7: 1,
+		0x20: 192,
+		0x1a: 14,
+		0x17: 2,
+		0x18: 2,
+		0x15: 1,
+		0x8: 1,
+		0x5: 65,
+		'&': 41,
+		'"': 6,
+		'*': 2,
+		0x1e: 2,
+		',': int(data[1])+int(data[2])*256,
+		0x09: 23,
+		0x11: 4,
+		0x10: 22,
+		0x12: 5,
+		0x0a: 7,
+		0x28: 58,
+		0x19: 3,
+		0x0d: 36,
+		0x0b: 9,
+		0x0f: 6,
+		0x0c: 11,
+		0x1f: 5,
+		0x23: 14,
+		0x16: 17,
+		0x1b: 6,
+		0x29: 3,
+		0x14: 24,
+		0x21: 10,
+		0x03: 7,
+		0x0e: 14,
+		0xff: 1,
+		0xfe: 5,
+		0xfd: (int(data[1])+int(data[2])*256)-4,
+		0xf9: 73,
+		0xfb: int(data[1])+3,
+		0xfc: 5,
+		0xfa: 1,
+		0xf6: 1,
+	}
+	pl := plGuide[data[0]]
+	if (data[0] == 0xff || data[0] == 0xfe || data[0] == 0xfd) && !smartpak {
+		log.Warning("warning erroneous compression assumption")
+		return
+	}
+	if len(data) < pl {
+		log.Warning("error subpacket longer than packet")
+		return
+	}
 	return
 }
