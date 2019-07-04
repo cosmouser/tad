@@ -70,13 +70,13 @@ type packet0x09 struct {
 }
 
 func (p *packet0x09) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
-	return fmt.Sprintf("%02x: started building a %v  at X: %v, Y: %v, Z: %v and assigned it an ID of %v",
+	return fmt.Sprintf("%02x: started building a %v at X: %v, Y: %v, Z: %v and assigned it an ID of %04x",
 		p.Marker,
 		unitNames[p.NetID],
-		p.UnitID,
 		p.XPos,
 		p.YPos,
-		p.ZPos)
+		p.ZPos,
+		p.UnitID)
 }
 func (p *packet0x09) GetMarker() byte {
 	return p.Marker
