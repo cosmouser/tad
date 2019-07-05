@@ -273,7 +273,8 @@ func TestReadHeaders(t *testing.T) {
 			increment++
 		}
 	}
-	t.Logf("total moves: %d", increment)
+	totalMoves := increment
+	t.Logf("total moves: %d", totalMoves)
 	t.Logf("playerMetadata.TimeToDie: %v", playerMetadata.TimeToDie[:])
 	nExpected2, err := tf.Seek(gameOffset, io.SeekStart)
 	if err != nil || nExpected2 != gameOffset {
@@ -286,8 +287,9 @@ func TestReadHeaders(t *testing.T) {
 	var recentPos [10]bool
 	var lastSerial [10]uint32
 	var masterHealth saveHealth
+	masterHealth.MaxUnits = 1000
 	increment = 1
-	for err != io.EOF {
+	for err != io.EOF && increment < totalMoves {
 		pr := packetRec{}
 		pr, err = loadMove(tf)
 		if err != nil && err != io.EOF {
@@ -298,7 +300,7 @@ func TestReadHeaders(t *testing.T) {
 		for i := range pr.Data {
 			cpdb[i] = pr.Data[i]
 		}
-		// prePack is a uint32 so lastDronePack ought to be [10]uint32
+		// prevPack is a uint32 so lastDronePack ought to be [10]uint32
 		// prevPack := lastDronePack[int(pr.Sender)-1]
 		if recentPos[int(pr.Sender)-1] {
 			recentPos[int(pr.Sender)-1] = false
@@ -319,6 +321,7 @@ func TestReadHeaders(t *testing.T) {
 			// cur := append([]byte{0x03, 0x00, 0x00}, cpdb[3:8]...)
 			for {
 				tmp := splitPacket2(&cpdb2, false)
+				pcps[tmp[0]]++
 				switch tmp[0] {
 				case 0x2c:
 					ip := binary.LittleEndian.Uint32(tmp[3:])
@@ -329,7 +332,6 @@ func TestReadHeaders(t *testing.T) {
 				if len(cpdb2) == 0 {
 					break
 				}
-				pcps[tmp[0]]++
 
 			}
 		}

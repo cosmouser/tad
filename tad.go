@@ -419,9 +419,6 @@ func loadTAPacket(pdata []byte) (taPacket, error) {
 	return tmp, nil
 }
 func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c bool) []byte {
-	// debug begin
-	log.Info("entering unsmartpak")
-	// debug end
 	var packnum uint32
 	var ut []byte
 	var packout bytes.Buffer
@@ -429,8 +426,7 @@ func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c boo
 	if c[0] == 0x04 {
 		ctmp, err := decompressLZ77([]byte(c), 3)
 		if err != nil {
-			log.Fatal(err)
-		}
+			log.Fatal(err) }
 		c = ctmp
 	}
 	c = c[3:]
@@ -482,12 +478,6 @@ func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c boo
 }
 
 func splitPacket2(data *[]byte, smartpak bool) (out []byte) {
-	// debug begin
-	log.WithFields(log.Fields{
-		"data":     data,
-		"smartpak": smartpak,
-	}).Info("entering splitPacket2")
-	// debug end
 	var (
 		length int
 		tmp    []byte
