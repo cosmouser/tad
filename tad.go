@@ -419,22 +419,29 @@ func loadTAPacket(pdata []byte) (taPacket, error) {
 	return tmp, nil
 }
 func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c bool) []byte {
-	var cpoint, packnum uint32
+	// debug begin
+	log.Info("entering unsmartpak")
+	// debug end
+	var packnum uint32
 	var ut []byte
 	var packout bytes.Buffer
-	c := string(pr.Data[0]) + "xx" + string(pr.Data[1:])
+	c := []byte(string(pr.Data[0]) + "xx" + string(pr.Data[1:]))
 	if c[0] == 0x04 {
-		c = string(decompressLZ77([]byte(c), 3))
+		ctmp, err := decompressLZ77([]byte(c), 3)
+		if err != nil {
+			log.Fatal(err)
+		}
+		c = ctmp
 	}
 	c = c[3:]
 	for {
-		s := splitPacket2([]byte(c), true)
+		s := splitPacket2(&c, true)
 		switch s[0] {
 		case 0xfe:
 			packnum = binary.LittleEndian.Uint32(s[1:])
 			last2cs[int(pr.Sender)-1] = packnum
 		case 0xff:
-			err = binary.Write(&packout, binary.LittleEndian, packnum)
+			err := binary.Write(&packout, binary.LittleEndian, packnum)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -445,17 +452,17 @@ func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c boo
 			last2cs[int(pr.Sender)-1] = packnum
 			ut = append(ut, tmp...)
 		case 0xfd:
-			err = binary.Write(&packout, binary.LittleEndian, packnum)
+			err := binary.Write(&packout, binary.LittleEndian, packnum)
 			if err != nil {
 				log.Fatal(err)
 			}
 			packoutData := packout.Bytes()
 			packout.Reset()
 			tmp := append(s[:3], append(packoutData, s[3:]...)...)
-			rw := binary.LittleEndian.Uint16(c[3:])
+			rw := binary.LittleEndian.Uint16(tmp[7:])
 			if rw == 0xffff {
 				nh := binary.LittleEndian.Uint32(tmp[10:])
-				save.Health[int(packnum%uint32(save.MaxUnits))] = nh
+				save.Health[int(packnum%uint32(save.MaxUnits))] = int32(nh)
 			}
 			packnum++
 			last2cs[int(pr.Sender)-1] = packnum
@@ -464,7 +471,9 @@ func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c boo
 		case 0x2c:
 			last2cs[int(pr.Sender)-1] = binary.LittleEndian.Uint32(s[3:])
 		default:
-			ut = append(ut, s...)
+			if incnon2c {
+				ut = append(ut, s...)
+			}
 		}
 		if len(c) == 0 {
 			return append([]byte{0x3}, ut...)
@@ -472,16 +481,22 @@ func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c boo
 	}
 }
 
-func splitPacket2(data []byte, smartpak bool) (out []byte) {
+func splitPacket2(data *[]byte, smartpak bool) (out []byte) {
+	// debug begin
+	log.WithFields(log.Fields{
+		"data":     data,
+		"smartpak": smartpak,
+	}).Info("entering splitPacket2")
+	// debug end
 	var (
 		length int
 		tmp    []byte
 	)
-	if len(data) == 0 {
+	if len(*data) == 0 {
 		out = []byte{}
 		return
 	}
-	tmp = append([]byte{}, data...)
+	tmp = append([]byte{}, *data...)
 
 	plGuide := map[byte]int{
 		0x2:  13,
@@ -496,7 +511,7 @@ func splitPacket2(data []byte, smartpak bool) (out []byte) {
 		0x5:  65,
 		'&':  41,
 		'"':  6,
-		'*':  2,
+		0x2a: 2,
 		0x1e: 2,
 		0x09: 23,
 		0x11: 4,
@@ -525,25 +540,26 @@ func splitPacket2(data []byte, smartpak bool) (out []byte) {
 		0xfa: 1,
 		0xf6: 1,
 	}
-	if len(data) > 2 {
-		plGuide[','] = int(data[1]) + int(data[2])*256
-		plGuide[0xfd] = (int(data[1]) + int(data[2])*256) - 4
-		plGuide[0xfb] = int(data[1]) + 3
+	if len(*data) > 2 {
+		plGuide[','] = int((*data)[1]) + int((*data)[2])*256
+		plGuide[0xfd] = (int((*data)[1]) + int((*data)[2])*256) - 4
+		plGuide[0xfb] = int((*data)[1]) + 3
 	}
-	pl := plGuide[data[0]]
-	// new
-
-	// old
-	if pl == 0 {
-		out = []byte{}
-		return
+	length = plGuide[(*data)[0]]
+	if ((*data)[0] == 0xff || tmp[0] == 0xfe || tmp[0] == 0xfd) && !smartpak {
+		log.Warning("erroneous compression assumption")
+	}
+	if len(tmp) < length {
+		log.Error("subpacket longer than packet")
+		length = 0
+	}
+	if length == 0 {
+		log.Info("empty packet")
+		*data = []byte{}
+		out = tmp
 	} else {
-		out = make([]byte, pl)
-		dr := bytes.NewReader(data)
-		bytesRead, err := dr.Read(out)
-		if bytesRead != pl || err != nil {
-			log.Fatalf("failed read for %02x packet", data[0])
-		}
+		*data = append([]byte{}, tmp[length:]...)
+		out = append([]byte{}, tmp[:length]...)
 	}
 	return
 }

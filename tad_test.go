@@ -2,6 +2,7 @@ package tad
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 	"fmt"
 	"io"
@@ -279,7 +280,10 @@ func TestReadHeaders(t *testing.T) {
 		t.Error("seek to gameOffset failed")
 	}
 	pcps := make(map[byte]int)
+	var maxunits uint32 = 1000
 	var lastDronePack [10]uint32
+	var posSyncComplete [10]uint32
+	var recentPos [10]bool
 	var lastSerial [10]uint32
 	var masterHealth saveHealth
 	increment = 1
@@ -294,9 +298,8 @@ func TestReadHeaders(t *testing.T) {
 		for i := range pr.Data {
 			cpdb[i] = pr.Data[i]
 		}
-		// TODO: define prevPack and lastDronePack
 		// prePack is a uint32 so lastDronePack ought to be [10]uint32
-		prevPack := lastDronePack[int(pr.Sender)-1]
+		// prevPack := lastDronePack[int(pr.Sender)-1]
 		if recentPos[int(pr.Sender)-1] {
 			recentPos[int(pr.Sender)-1] = false
 			cpdb = unsmartpak(pr, &masterHealth, lastDronePack, false)
@@ -308,24 +311,25 @@ func TestReadHeaders(t *testing.T) {
 			cpdb = unsmartpak(pr, &masterHealth, lastDronePack, true)
 		}
 		cpdb = append([]byte{cpdb[0], 'c', 'c', 0xff, 0xff, 0xff, 0xff}, cpdb[1:]...)
-		packToGo = packToGo + prePack - lastDronePack[int(pr.Sender)-1]
 		// fmMain.timemode.Checked section -- omitted
 		// begin filtering information
 		if len(cpdb) > 7 {
-			cpdb2 := append([]byte, cpdb[7:]...)
-			cur := append([]byte{0x03, 0x00, 0x00}, cpdb[3:8]...)
+			cpdb2 := append([]byte{}, cpdb[7:]...)
+			// cur only needed when re-packing and sending to server
+			// cur := append([]byte{0x03, 0x00, 0x00}, cpdb[3:8]...)
 			for {
-				tmp := splitPacket2(cpdb2, false)
+				tmp := splitPacket2(&cpdb2, false)
 				switch tmp[0] {
 				case 0x2c:
 					ip := binary.LittleEndian.Uint32(tmp[3:])
 					lastSerial[int(pr.Sender)-1] = ip
 				}
-				cur = append(cur, tmp...)
+				// cur only needed when re-packing and sending to server
+				// cur = append(cur, tmp...)
 				if len(cpdb2) == 0 {
 					break
 				}
-				pcps[subpackets[i][0]]++
+				pcps[tmp[0]]++
 
 			}
 		}
