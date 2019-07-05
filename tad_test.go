@@ -278,8 +278,10 @@ func TestReadHeaders(t *testing.T) {
 	if err != nil || nExpected2 != gameOffset {
 		t.Error("seek to gameOffset failed")
 	}
-	compMap := make(map[byte]int)
 	pcps := make(map[byte]int)
+	var lastDronePack [10]uint32
+	var lastSerial [10]uint32
+	var masterHealth saveHealth
 	increment = 1
 	for err != io.EOF {
 		pr := packetRec{}
@@ -287,26 +289,47 @@ func TestReadHeaders(t *testing.T) {
 		if err != nil && err != io.EOF {
 			t.Error(err)
 		}
-		//
-		prevPack := lastDronePack[pr.Sender]
-
-		if len(pr.Data) > 0 {
-			compMap[pr.Data[0]]++
-			subpackets, err := deserialize(pr)
-			if err != nil {
-				t.Error(err)
-			}
-			for i := range subpackets {
+		// current packet data buffer
+		cpdb := make([]byte, len(pr.Data))
+		for i := range pr.Data {
+			cpdb[i] = pr.Data[i]
+		}
+		// TODO: define prevPack and lastDronePack
+		// prePack is a uint32 so lastDronePack ought to be [10]uint32
+		prevPack := lastDronePack[int(pr.Sender)-1]
+		if recentPos[int(pr.Sender)-1] {
+			recentPos[int(pr.Sender)-1] = false
+			cpdb = unsmartpak(pr, &masterHealth, lastDronePack, false)
+			posSyncComplete[int(pr.Sender)-1] = lastDronePack[int(pr.Sender)-1] + maxunits
+		}
+		if lastDronePack[int(pr.Sender)-1] < posSyncComplete[int(pr.Sender)-1] {
+			cpdb = unsmartpak(pr, &masterHealth, lastDronePack, false)
+		} else {
+			cpdb = unsmartpak(pr, &masterHealth, lastDronePack, true)
+		}
+		cpdb = append([]byte{cpdb[0], 'c', 'c', 0xff, 0xff, 0xff, 0xff}, cpdb[1:]...)
+		packToGo = packToGo + prePack - lastDronePack[int(pr.Sender)-1]
+		// fmMain.timemode.Checked section -- omitted
+		// begin filtering information
+		if len(cpdb) > 7 {
+			cpdb2 := append([]byte, cpdb[7:]...)
+			cur := append([]byte{0x03, 0x00, 0x00}, cpdb[3:8]...)
+			for {
+				tmp := splitPacket2(cpdb2, false)
+				switch tmp[0] {
+				case 0x2c:
+					ip := binary.LittleEndian.Uint32(tmp[3:])
+					lastSerial[int(pr.Sender)-1] = ip
+				}
+				cur = append(cur, tmp...)
+				if len(cpdb2) == 0 {
+					break
+				}
 				pcps[subpackets[i][0]]++
+
 			}
 		}
 		increment++
-	}
-	if compMap[0x04] != 231 {
-		t.Errorf("expected 231 compressed moves, got %v", compMap[0x04])
-	}
-	if compMap[0x03] != 2421 {
-		t.Errorf("expected 2421 non-compressed moves, got %v", compMap[0x03])
 	}
 	for k, v := range pcps {
 		t.Logf("%02x: %4d", k, v)

@@ -101,3 +101,7 @@ type unitSync03 struct {
 	Status uint16
 	Limit  uint16
 }
+type saveHealth struct {
+	MaxUnits int32
+	Health   [5001]int32
+}

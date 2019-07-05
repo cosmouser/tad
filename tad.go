@@ -418,7 +418,135 @@ func loadTAPacket(pdata []byte) (taPacket, error) {
 	}
 	return tmp, nil
 }
+func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c bool) []byte {
+	var cpoint, packnum uint32
+	var ut []byte
+	var packout bytes.Buffer
+	c := string(pr.Data[0]) + "xx" + string(pr.Data[1:])
+	if c[0] == 0x04 {
+		c = string(decompressLZ77([]byte(c), 3))
+	}
+	c = c[3:]
+	for {
+		s := splitPacket2([]byte(c), true)
+		switch s[0] {
+		case 0xfe:
+			packnum = binary.LittleEndian.Uint32(s[1:])
+			last2cs[int(pr.Sender)-1] = packnum
+		case 0xff:
+			err = binary.Write(&packout, binary.LittleEndian, packnum)
+			if err != nil {
+				log.Fatal(err)
+			}
+			packoutData := packout.Bytes()
+			packout.Reset()
+			tmp := append([]byte{0x2c, 0x0b, 0x00}, append(packoutData, 0xff, 0xff, 0x01, 0x00)...)
+			packnum++
+			last2cs[int(pr.Sender)-1] = packnum
+			ut = append(ut, tmp...)
+		case 0xfd:
+			err = binary.Write(&packout, binary.LittleEndian, packnum)
+			if err != nil {
+				log.Fatal(err)
+			}
+			packoutData := packout.Bytes()
+			packout.Reset()
+			tmp := append(s[:3], append(packoutData, s[3:]...)...)
+			rw := binary.LittleEndian.Uint16(c[3:])
+			if rw == 0xffff {
+				nh := binary.LittleEndian.Uint32(tmp[10:])
+				save.Health[int(packnum%uint32(save.MaxUnits))] = nh
+			}
+			packnum++
+			last2cs[int(pr.Sender)-1] = packnum
+			tmp[0] = 0x2c
+			ut = append(ut, tmp...)
+		case 0x2c:
+			last2cs[int(pr.Sender)-1] = binary.LittleEndian.Uint32(s[3:])
+		default:
+			ut = append(ut, s...)
+		}
+		if len(c) == 0 {
+			return append([]byte{0x3}, ut...)
+		}
+	}
+}
 
+func splitPacket2(data []byte, smartpak bool) (out []byte) {
+	var (
+		length int
+		tmp    []byte
+	)
+	if len(data) == 0 {
+		out = []byte{}
+		return
+	}
+	tmp = append([]byte{}, data...)
+
+	plGuide := map[byte]int{
+		0x2:  13,
+		0x6:  1,
+		0x7:  1,
+		0x20: 192,
+		0x1a: 14,
+		0x17: 2,
+		0x18: 2,
+		0x15: 1,
+		0x8:  1,
+		0x5:  65,
+		'&':  41,
+		'"':  6,
+		'*':  2,
+		0x1e: 2,
+		0x09: 23,
+		0x11: 4,
+		0x10: 22,
+		0x12: 5,
+		0x0a: 7,
+		0x28: 58,
+		0x19: 3,
+		0x0d: 36,
+		0x0b: 9,
+		0x0f: 6,
+		0x0c: 11,
+		0x1f: 5,
+		0x23: 14,
+		0x16: 17,
+		0x1b: 6,
+		0x29: 3,
+		0x14: 24,
+		0x21: 10,
+		0x03: 7,
+		0x0e: 14,
+		0xff: 1,
+		0xfe: 5,
+		0xf9: 73,
+		0xfc: 5,
+		0xfa: 1,
+		0xf6: 1,
+	}
+	if len(data) > 2 {
+		plGuide[','] = int(data[1]) + int(data[2])*256
+		plGuide[0xfd] = (int(data[1]) + int(data[2])*256) - 4
+		plGuide[0xfb] = int(data[1]) + 3
+	}
+	pl := plGuide[data[0]]
+	// new
+
+	// old
+	if pl == 0 {
+		out = []byte{}
+		return
+	} else {
+		out = make([]byte, pl)
+		dr := bytes.NewReader(data)
+		bytesRead, err := dr.Read(out)
+		if bytesRead != pl || err != nil {
+			log.Fatalf("failed read for %02x packet", data[0])
+		}
+	}
+	return
+}
 func splitPacket(data []byte) (out []byte) {
 	if len(data) == 0 {
 		out = []byte{}
