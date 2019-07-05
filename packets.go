@@ -200,7 +200,7 @@ func (p *packet0x11) printMessage(unitNames map[uint16]string, unitMem map[uint1
 		p.Marker,
 		unitNames[unitMem[p.UnitID]],
 		p.UnitID,
-		p.Unknown)
+		p.State)
 }
 func (p *packet0x11) GetMarker() byte {
 	return p.Marker
