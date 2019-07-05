@@ -390,6 +390,20 @@ func loadTAPacket(pdata []byte) (taPacket, error) {
 			return tmp, err
 		}
 		return tmp, nil
+	case 0x05:
+		tmp := &packet0x05{}
+		err := binary.Read(pr, binary.LittleEndian, tmp)
+		if err != nil {
+			return tmp, err
+		}
+		return tmp, nil
+	case 0x11:
+		tmp := &packet0x11{}
+		err := binary.Read(pr, binary.LittleEndian, tmp)
+		if err != nil {
+			return tmp, err
+		}
+		return tmp, nil
 	}
 	tmp := &packetDefault{}
 	b, err := pr.ReadByte()

@@ -12,6 +12,7 @@ import (
 )
 
 var sample1 = path.Join("sample", "dckazikdidou.ted")
+var sample2 = path.Join("sample", "dcfnhessano.ted")
 
 // TestLoadSection opens a ted file and tests loading of multiple sections
 func TestLoadSection(t *testing.T) {
@@ -85,7 +86,7 @@ func TestParseLobbyChat(t *testing.T) {
 	tf.Close()
 }
 func TestPlaybackMessages(t *testing.T) {
-	tf, err := os.Open(sample1)
+	tf, err := os.Open(sample2)
 	if err != nil {
 		t.Error(err)
 	}

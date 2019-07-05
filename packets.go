@@ -2,6 +2,7 @@ package tad
 
 import (
 	"fmt"
+	"bytes"
 )
 
 type taPacket interface {
@@ -164,6 +165,21 @@ func (p *packet0x0b) GetMarker() byte {
 	return p.Marker
 }
 
+// Chat message
+type packet0x05 struct {
+	Marker       byte
+	Message [64]byte
+}
+
+func (p *packet0x05) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	split := bytes.Split(p.Message[:], []byte{0x00})
+	return fmt.Sprintf("%02x: sent chat message: %v",
+		p.Marker,
+		string(split[0]))
+}
+func (p *packet0x05) GetMarker() byte {
+	return p.Marker
+}
 // Unknown
 type packet0x0d struct {
 	Marker   byte
@@ -173,11 +189,21 @@ type packet0x0d struct {
 	Unknown2 byte
 }
 
-// Unknown
+// Unit state change
 type packet0x11 struct {
 	Marker  byte
 	UnitID  uint16
-	Unknown byte
+	State byte // 1=on, 9=factory is building
+}
+func (p *packet0x11) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: %v (%04x) entered state %02x",
+		p.Marker,
+		unitNames[unitMem[p.UnitID]],
+		p.UnitID,
+		p.Unknown)
+}
+func (p *packet0x11) GetMarker() byte {
+	return p.Marker
 }
 
 // Explosions ("displayed in wrong place?" - SY)
