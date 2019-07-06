@@ -238,6 +238,8 @@ func TestReadHeaders(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+		t.Logf("player %d has color %d", i, p[0x9e])
+		t.Logf("\n%v", p)
 		idn, err := createIdent(p)
 		if err != nil {
 			t.Error(err)
@@ -280,6 +282,20 @@ func TestReadHeaders(t *testing.T) {
 	if err != nil || nExpected2 != gameOffset {
 		t.Error("seek to gameOffset failed")
 	}
+	// playbackmsg section begin
+	gobf, err := os.Open("taesc900.gob")
+	if err != nil {
+		t.Error(err)
+	}
+	gd := gob.NewDecoder(gobf)
+	unitmem := make(map[uint16]uint16)
+	unitnames := make(map[uint16]string)
+	err = gd.Decode(&unitnames)
+	if err != nil {
+		t.Error(err)
+	}
+	gobf.Close()
+	// playbackmsg section end
 	pcps := make(map[byte]int)
 	var maxunits uint32 = 1000
 	var lastDronePack [10]uint32
@@ -289,6 +305,8 @@ func TestReadHeaders(t *testing.T) {
 	var masterHealth saveHealth
 	masterHealth.MaxUnits = 1000
 	increment = 1
+	// test num2c
+	x2cmap := make(map[byte]int)
 	for err != io.EOF && increment < totalMoves {
 		pr := packetRec{}
 		pr, err = loadMove(tf)
@@ -322,6 +340,14 @@ func TestReadHeaders(t *testing.T) {
 			for {
 				tmp := splitPacket2(&cpdb2, false)
 				pcps[tmp[0]]++
+				if tmp[0] != 0x2c || (tmp[0] == 0x2c && tmp[1] != 0x0b) {
+					if os.Getenv("gamelogout") == "doit" {
+						t.Log(playbackMsg(pr.Sender, tmp, unitnames, unitmem))
+					}
+					if tmp[0] == 0x2c {
+						x2cmap[pr.Sender]++
+					}
+				}
 				switch tmp[0] {
 				case 0x2c:
 					ip := binary.LittleEndian.Uint32(tmp[3:])
@@ -337,6 +363,9 @@ func TestReadHeaders(t *testing.T) {
 		}
 		increment++
 	}
+	for k, v := range x2cmap {
+		t.Logf("num 2c for sender %v: %d", k, v)
+	}
 	for k, v := range pcps {
 		t.Logf("%02x: %4d", k, v)
 	}
@@ -346,6 +375,7 @@ func TestReadHeaders(t *testing.T) {
 	if pcps[0x28] <= 59 {
 		t.Error("Expected more 0x28 packets")
 	}
+	// TODO: make packet dumper that receives
 	if os.Getenv("packet_hunting") == "hexdumps" {
 		// packet hunting section
 		// create packet dumps per type

@@ -3,6 +3,7 @@ package tad
 import (
 	"fmt"
 	"bytes"
+	"encoding/hex"
 )
 
 type taPacket interface {
@@ -16,7 +17,7 @@ type packetDefault struct {
 }
 
 func (p *packetDefault) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
-	return fmt.Sprintf("%02x: %v", p.Marker, p.Data)
+	return fmt.Sprintf("%02x: \n%v", p.Marker, hex.Dump(p.Data))
 }
 func (p *packetDefault) GetMarker() byte {
 	return p.Marker
@@ -203,6 +204,21 @@ func (p *packet0x11) printMessage(unitNames map[uint16]string, unitMem map[uint1
 		p.State)
 }
 func (p *packet0x11) GetMarker() byte {
+	return p.Marker
+}
+// Unitstat+move
+type packet0x2c struct {
+	Marker  byte
+	Sub byte
+	Unknown byte
+	CurrNr  uint32
+}
+func (p *packet0x2c) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	return fmt.Sprintf("%02x: Marker: ",
+		p.Marker)
+}
+
+func (p *packet0x2c) GetMarker() byte {
 	return p.Marker
 }
 
