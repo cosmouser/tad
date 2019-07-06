@@ -59,7 +59,7 @@ type identRec struct {
 	Height  uint16
 	Fill3   byte
 	Player1 int32
-	Data2   [7]byte
+	Data2   [7]byte // Data2[2] is player color
 	Clicked byte
 	Fill2   [9]byte
 	Data5   uint16

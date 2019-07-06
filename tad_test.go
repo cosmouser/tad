@@ -88,10 +88,6 @@ func TestParseLobbyChat(t *testing.T) {
 	tf.Close()
 }
 func TestPlaybackMessages(t *testing.T) {
-	// Skip playbacksection
-	t.Skip()
-	// --------------------
-
 	tf, err := os.Open(sample2)
 	if err != nil {
 		t.Error(err)
@@ -135,6 +131,7 @@ func TestPlaybackMessages(t *testing.T) {
 			t.Error(err)
 		}
 		idn, err := createIdent(p)
+		t.Logf("%+v", idn)
 		if err != nil {
 			t.Error(err)
 		}
@@ -166,7 +163,9 @@ func TestPlaybackMessages(t *testing.T) {
 			t.Error(err)
 		}
 		for i := range subpackets {
-			t.Log(playbackMsg(pr.Sender, subpackets[i], unitnames, unitmem))
+			if os.Getenv("gamelogout") == "doit" {
+				t.Log(playbackMsg(pr.Sender, subpackets[i], unitnames, unitmem))
+			}
 		}
 		if pr.Sender > 10 || pr.Sender < 1 {
 		} else {
@@ -239,12 +238,11 @@ func TestReadHeaders(t *testing.T) {
 			t.Error(err)
 		}
 		t.Logf("player %d has color %d", i, p[0x9e])
-		t.Logf("\n%v", p)
 		idn, err := createIdent(p)
 		if err != nil {
 			t.Error(err)
 		}
-		// t.Logf("%+v", idn)
+		t.Logf("%+v", idn)
 		if i == 1 && (idn.Width != 2560 || idn.Height != 1440) {
 			t.Error("failed to parseIdent properly")
 		}
@@ -306,7 +304,6 @@ func TestReadHeaders(t *testing.T) {
 	masterHealth.MaxUnits = 1000
 	increment = 1
 	// test num2c
-	x2cmap := make(map[byte]int)
 	for err != io.EOF && increment < totalMoves {
 		pr := packetRec{}
 		pr, err = loadMove(tf)
@@ -344,9 +341,6 @@ func TestReadHeaders(t *testing.T) {
 					if os.Getenv("gamelogout") == "doit" {
 						t.Log(playbackMsg(pr.Sender, tmp, unitnames, unitmem))
 					}
-					if tmp[0] == 0x2c {
-						x2cmap[pr.Sender]++
-					}
 				}
 				switch tmp[0] {
 				case 0x2c:
@@ -362,9 +356,6 @@ func TestReadHeaders(t *testing.T) {
 			}
 		}
 		increment++
-	}
-	for k, v := range x2cmap {
-		t.Logf("num 2c for sender %v: %d", k, v)
 	}
 	for k, v := range pcps {
 		t.Logf("%02x: %4d", k, v)
