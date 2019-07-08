@@ -63,23 +63,20 @@ func parseSummary(r io.Reader) (sum summary, err error) {
 	return
 }
 
-func parseLobbyChat(extra extraSector) (chat lobbyChat, err error) {
+
+func parseLobbyChat(extra extraSector) (messages []string, err error) {
 	raw := bytes.Split(extra.data, []byte{0x0d})
-	chat.Messages = make([]string, len(raw)-1)
-	for i := range chat.Messages {
-		chat.Messages[i] = string(raw[i])
+	messages = make([]string, len(raw)-1)
+	for i := range messages {
+		messages[i] = string(raw[i])
 	}
 	return
 }
 
-func parseAddressBlock(r io.Reader) (ab addressBlock, err error) {
-	data, err := loadSection(r)
-	if err != nil {
-		return ab, err
-	}
-	addressData := simpleCrypt(data[4:])
+func parseAddressBlock(extra extraSector) (ab string, err error) {
+	addressData := simpleCrypt(extra.data)
 	ip := bytes.Split(addressData[0x50:], []byte{0x0})
-	ab.IP = string(ip[0])
+	ab = string(ip[0])
 	return
 }
 func parsePlayer(r io.Reader) (pb playerBlock, err error) {

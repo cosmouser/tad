@@ -2,19 +2,213 @@ package tad
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/binary"
+	"errors"
 	"encoding/gob"
-	"fmt"
 	"io"
 	"net"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	log "github.com/sirupsen/logrus"
 )
 
 var sample1 = path.Join("sample", "dckazikdidou.ted")
 var sample2 = path.Join("sample", "dcfnhessano.ted")
+var sample3 = path.Join("sample", "highground.ted")
+var sample4 = path.Join("sample", "cheats.ted")
+var darkcometpng = path.Join("sample", "dc.png")
+
+// loadDemo is a function for conveniently opening up demo files and playing
+// through their packets.
+// It will need a reader to parse the file.
+// It will need a function to use on the packets
+// It needs a logging flag
+func loadDemo(r io.ReadSeeker, testFunc func([]byte, byte, *game)) error {
+	g := game{}
+	sum, err := parseSummary(r)
+	if err != nil {
+		return err
+	}
+	g.MapName = string(bytes.Split(sum.MapName[:], []byte{0x0})[0])
+	g.MaxUnits = int(sum.MaxUnits)
+	g.Players = make([]DemoPlayer, int(sum.NumPlayers))
+	eh, err := loadSection(r)
+	if err != nil {
+		return err
+	}
+	numSectors := int(eh[0])
+	var playerAddrNum int
+	for i := 0; i < numSectors; i++ {
+		sec, err := loadSection(r)
+		if err != nil {
+			return err
+		}
+		extra, err := parseExtra(sec)
+		if err != nil {
+			return err
+		}
+		switch extra.sectorType {
+		case commentsType:
+			log.WithFields(log.Fields{
+				"content": string(extra.data),
+			}).Info("comment(s) detected")
+		case lobbyChatType:
+			lobbyChat, err := parseLobbyChat(extra)
+			if err != nil {
+				return err
+			}
+			g.LobbyChat = lobbyChat
+		case versionNumberType:
+			g.Version = string(extra.data)
+		case dateStringType:
+			g.RecDate = string(extra.data)
+		case recFromType:
+			g.RecFrom = string(extra.data)
+		case playerAddrType:
+			addr, err := parseAddressBlock(extra)
+			if err != nil {
+				return err
+			}
+			g.Players[playerAddrNum].IP = addr
+			playerAddrNum++
+		}
+	}
+	for i := 0; i < len(g.Players); i++ {
+		player, err := parsePlayer(r)
+		if err != nil {
+			return err
+		}
+		g.Players[i].Color = player.Color
+		g.Players[i].Side = player.Side
+		g.Players[i].Number = player.Number
+		g.Players[i].Name = string(bytes.TrimRight(player.Name[:], "\x00"))
+	}
+	for i := 0; i < len(g.Players); i++ {
+		sm, err := parseStatMsg(r)
+		if err != nil {
+			return err
+		}
+		p, err := createPacket(sm.Data)
+		if err != nil {
+			return err
+		}
+		g.Players[i].Status = string(p)
+		g.Players[i].Color = p[0x9e]
+		if p[0xa2] & 0x20 != 0 {
+			g.Players[i].Cheats = true
+		}
+	}
+	upd, err := parseUnitSyncData(r)
+	if err != nil {
+		return err
+	}
+	var updSum uint32
+	for _, v := range upd {
+		if v.InUse {
+			updSum += v.ID + v.CRC
+		}
+	}
+	var sumSlice bytes.Buffer
+	if err := binary.Write(&sumSlice, binary.LittleEndian, updSum); err != nil {
+		return err
+	}
+	sumArr := md5.Sum(sumSlice.Bytes())
+	g.Unitsum = hex.EncodeToString(sumArr[:])
+	gameOffset := getGameOffset(r)
+	var loopCount int
+	for err != io.EOF {
+		pr := packetRec{}
+		pr, err = loadMove(r)
+		if pr.Sender > 10 || pr.Sender < 1 {
+			if err != io.EOF {
+				log.WithFields(log.Fields{
+					"sender": pr.Sender,
+					"data": pr.Data,
+					"loopCount": loopCount,
+				}).Warn("move from odd sender")
+			}
+		} else {
+			g.TimeToDie[int(pr.Sender)-1] = loopCount
+			loopCount++
+		}
+	}
+	g.TotalMoves = loopCount
+	nExpected, err := r.Seek(gameOffset, io.SeekStart)
+	if err != nil || nExpected != gameOffset {
+		return errors.New("seek to gameoffset failed")
+	}
+	var (
+		lastDronePack [10]uint32
+		posSyncComplete [10]uint32
+		recentPos [10]bool
+		lastSerial [10]uint32
+		masterHealth saveHealth
+	)
+	masterHealth.MaxUnits = int32(g.MaxUnits)
+	loopCount = 1
+	for err != io.EOF && loopCount < g.TotalMoves {
+		pr := packetRec{}
+		pr, err = loadMove(r)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		cpdb := make([]byte, len(pr.Data))
+		for i := range pr.Data {
+			cpdb[i] = pr.Data[i]
+		}
+		if recentPos[int(pr.Sender)-1] {
+			recentPos[int(pr.Sender)-1] = false
+			cpdb = unsmartpak(pr, &masterHealth, lastDronePack, false)
+			posSyncComplete[int(pr.Sender)-1] = lastDronePack[int(pr.Sender)-1] + uint32(g.MaxUnits)
+		}
+		if lastDronePack[int(pr.Sender)-1] < posSyncComplete[int(pr.Sender)-1] {
+			cpdb = unsmartpak(pr, &masterHealth, lastDronePack, false)
+		} else {
+			cpdb = unsmartpak(pr, &masterHealth, lastDronePack, true)
+		}
+		cpdb = append([]byte{cpdb[0], 'c', 'c', 0xff, 0xff, 0xff, 0xff}, cpdb[1:]...)
+		if len(cpdb) > 7 {
+			cpdb2 := append([]byte{}, cpdb[7:]...)
+			for {
+				tmp := splitPacket2(&cpdb2, false)
+				if tmp[0] != 0x2c || (tmp[0] == 0x2c && tmp[1] != 0x0b) {
+					// entry point for testFunc parameter
+					testFunc(tmp, pr.Sender, &g)
+				}
+				switch tmp[0] {
+				case 0x2c:
+					ip := binary.LittleEndian.Uint32(tmp[3:])
+					lastSerial[int(pr.Sender)-1] = ip
+				}
+				if len(cpdb2) == 0 {
+					break
+				}
+
+			}
+		}
+		loopCount++
+	}
+	return nil
+}
+func TestLoadDemo(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	counter := make(map[byte]int)
+	err = loadDemo(tf, func(p []byte, s byte, g *game) {
+		counter[p[0]]++
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	tf.Close()
+}
+
 
 // TestLoadSection opens a ted file and tests loading of multiple sections
 func TestLoadSection(t *testing.T) {
@@ -76,13 +270,13 @@ func TestParseLobbyChat(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(clog.Messages) != 2 {
-		t.Errorf("wanted 2 for length of Messages, got %d", len(clog.Messages))
+	if len(clog) != 2 {
+		t.Errorf("wanted 2 for length of Messages, got %d", len(clog))
 	}
-	if len(clog.Messages[0]) == 0 {
+	if len(clog[0]) == 0 {
 		t.Error("got 0 for length of first lobby message")
 	}
-	for i, v := range clog.Messages {
+	for i, v := range clog {
 		t.Logf("message %d: %v", i, v)
 	}
 	tf.Close()
@@ -303,7 +497,8 @@ func TestReadHeaders(t *testing.T) {
 	var masterHealth saveHealth
 	masterHealth.MaxUnits = 1000
 	increment = 1
-	// test num2c
+	// make map of byte slices for 2c dump
+	x2cSlices := make(map[byte][][]byte)
 	for err != io.EOF && increment < totalMoves {
 		pr := packetRec{}
 		pr, err = loadMove(tf)
@@ -346,6 +541,12 @@ func TestReadHeaders(t *testing.T) {
 				case 0x2c:
 					ip := binary.LittleEndian.Uint32(tmp[3:])
 					lastSerial[int(pr.Sender)-1] = ip
+
+					// for map of byte slicesfor 2c dump
+					if _, ok := x2cSlices[tmp[1]]; !ok {
+						x2cSlices[tmp[1]] = [][]byte{}
+					}
+					x2cSlices[tmp[1]] = append(x2cSlices[tmp[1]], tmp)
 				}
 				// cur only needed when re-packing and sending to server
 				// cur = append(cur, tmp...)
@@ -366,43 +567,22 @@ func TestReadHeaders(t *testing.T) {
 	if pcps[0x28] <= 59 {
 		t.Error("Expected more 0x28 packets")
 	}
-	// TODO: make packet dumper that receives
-	if os.Getenv("packet_hunting") == "hexdumps" {
-		// packet hunting section
-		// create packet dumps per type
-		fds := make(map[byte]*os.File)
-		for k, v := range pcps {
-			fp, err := os.Create(path.Join("tmp", fmt.Sprintf("%02x_%d.hexdump", k, v)))
-			if err != nil {
-				t.Error(err)
-			}
-			fds[k] = fp
-		}
-		nExpected2, err = tf.Seek(gameOffset, io.SeekStart)
-		if err != nil || nExpected2 != gameOffset {
-			t.Error("seek to gameOffset failed")
-		}
-		for err != io.EOF {
-			pr := packetRec{}
-			pr, err = loadMove(tf)
-			if len(pr.Data) > 0 {
-				subpackets, err := deserialize(pr)
-				if err != nil {
-					t.Error(err)
-				}
-				for i := range subpackets {
-					_, err := fds[subpackets[i][0]].Write(subpackets[i])
-					if err != nil {
-						t.Error(err)
-					}
-				}
-			}
-		}
-		for _, v := range fds {
-			v.Close()
-		}
-	}
-	tf.Close()
+	// // packet hunting section
+	// // create packet dumps per type
+	// for k := range x2cSlices {
+	// 	fp, err := os.Create(path.Join("tmp", fmt.Sprintf("2c_%02x.hexdump", k)))
+	// 	if err != nil {
+	// 		t.Error(err)
+	// 	}
+	// 	for _, v := range x2cSlices[k] {
+	// 		_, err := fp.Write(v)
+	// 		if err != nil {
+	// 			t.Error(err)
+	// 		}
+	// 	}
+	// 	fp.Close()
+	// }
+	// tf.Close()
 }
 
 func TestParseAddresses(t *testing.T) {
@@ -441,12 +621,20 @@ func TestParseAddresses(t *testing.T) {
 		t.Error(err)
 	}
 	for i := 0; i < int(sum.NumPlayers); i++ {
-		addressBlock, err := parseAddressBlock(tf)
+		s, err := loadSection(tf)
 		if err != nil {
 			t.Error(err)
 		}
-		if net.ParseIP(addressBlock.IP) == nil {
-			t.Error("unable to parse adddressBlock.IP")
+		s2, err := parseExtra(s)
+		if err != nil {
+			t.Error(err)
+		}
+		addressBlock, err := parseAddressBlock(s2)
+		if err != nil {
+			t.Error(err)
+		}
+		if net.ParseIP(addressBlock) == nil {
+			t.Error("unable to parse adddressBlock")
 		}
 	}
 	tf.Close()
@@ -488,7 +676,7 @@ func TestParsePlayers(t *testing.T) {
 		t.Error(err)
 	}
 	for i := 0; i < int(sum.NumPlayers); i++ {
-		_, err := parseAddressBlock(tf)
+		_, err := loadSection(tf)
 		if err != nil {
 			t.Error(err)
 		}
@@ -547,7 +735,7 @@ func TestParseUnitSyncData(t *testing.T) {
 		t.Error(err)
 	}
 	for i := 0; i < int(sum.NumPlayers); i++ {
-		_, err := parseAddressBlock(tf)
+		_, err := loadSection(tf)
 		if err != nil {
 			t.Error(err)
 		}
@@ -579,6 +767,33 @@ func TestParseUnitSyncData(t *testing.T) {
 	}
 	if v, ok := upd[0x3ed65df7]; ok && v.InUse != true {
 		t.Error("0x3ed65df7 unit marked as not InUse")
+	}
+	tf.Close()
+}
+func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	gobf, err := os.Open("taesc900.gob")
+	if err != nil {
+		t.Error(err)
+	}
+	gd := gob.NewDecoder(gobf)
+	unitmem := make(map[uint16]uint16)
+	unitnames := make(map[uint16]string)
+	err = gd.Decode(&unitnames)
+	if err != nil {
+		t.Error(err)
+	}
+	gobf.Close()
+	err = loadDemo(tf, func(p []byte, sender byte, g *game) {
+		if os.Getenv("playbackMsgs") == "enabled" {
+			t.Log(playbackMsg(sender, p, unitnames, unitmem))
+		}
+	})
+	if err != nil {
+		t.Error(err)
 	}
 	tf.Close()
 }

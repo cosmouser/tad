@@ -10,6 +10,20 @@ const (
 	recFromType
 	playerAddrType
 )
+// game holds the state of the replay parser
+type game struct {
+	MapName string
+	Players []DemoPlayer
+	LobbyChat []string
+	Version string
+	RecFrom string
+	RecDate string
+	MaxUnits int
+	TimeToDie [10]int
+	Killed    [10]bool
+	TotalMoves int
+	Unitsum string
+}
 
 type summary struct {
 	Magic      [8]byte
@@ -28,14 +42,6 @@ type statusMsg struct {
 	Data   []byte
 }
 
-type lobbyChat struct {
-	Messages []string
-}
-
-type addressBlock struct {
-	IP string
-}
-
 type playerBlock struct {
 	Color  byte
 	Side   byte // 0=arm,1=core,2=watch
@@ -44,7 +50,7 @@ type playerBlock struct {
 }
 
 type packetRec struct {
-	Time   uint16
+	Time   uint16 // time since last packet in milliseconds
 	Sender byte
 	Data   []byte
 }
@@ -77,6 +83,8 @@ type DemoPlayer struct {
 	Number byte
 	Name   string
 	Status string
+	IP string
+	Cheats bool
 	orgpid int32
 }
 type unitSyncRecord struct {
