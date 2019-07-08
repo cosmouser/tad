@@ -21,6 +21,7 @@ var sample2 = path.Join("sample", "dcfnhessano.ted")
 var sample3 = path.Join("sample", "highground.ted")
 var sample4 = path.Join("sample", "cheats.ted")
 var darkcometpng = path.Join("sample", "dc.png")
+var testGif = path.Join("tmp", "test.gif")
 
 // loadDemo is a function for conveniently opening up demo files and playing
 // through their packets.
@@ -582,7 +583,7 @@ func TestReadHeaders(t *testing.T) {
 	// 	}
 	// 	fp.Close()
 	// }
-	// tf.Close()
+	tf.Close()
 }
 
 func TestParseAddresses(t *testing.T) {
@@ -795,5 +796,84 @@ func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	tf.Close()
+}
+func TestDrawGif(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	if err != nil {
+		t.Error(err)
+	}
+	// placeholder for map of unit positions
+	frames := []playbackFrame{}
+	unitmem := make(map[uint16]*taUnit)
+	addFrame := func() {
+		newFrame := playbackFrame{}
+		newFrame.Number = len(frames)-1
+		newUnitSnapshot := make(map[uint16]*taUnit)
+		for k, v := range unitmem {
+			newUnitSnapshot[k] = new(taUnit)
+			newUnitSnapshot[k].Owner = v.Owner
+			newUnitSnapshot[k].NetID = v.NetID
+			newUnitSnapshot[k].Finished = v.Finished
+			newUnitSnapshot[k].XPos = v.XPos
+			newUnitSnapshot[k].YPos = v.YPos
+			newUnitSnapshot[k].ZPos = v.ZPos
+		}
+		frames = append(frames, newFrame)
+	}
+	err = loadDemo(tf, func(p []byte, sender byte, g *game) {
+		if p[0] == 0x9 {
+			tmp := &packet0x09{}
+			err = binary.Read(pr, binary.LittleEndian, tmp)
+			if err != nil {
+				t.Error(err)
+			}
+			unitmem[tmp.UnitID] = &taUnit{
+				Owner: int(sender),
+				NetID: tmp.NetID,
+				Finished: false,
+				XPos: int(XPos),
+				YPos: int(YPos),
+				ZPos: int(ZPos),
+			}
+			// check to see if its the first unit aka commander
+			if tmp.UnitID % g.MaxUnits == 1 {
+				unitmem[tmp.UnitID].Finished = true
+			}
+		}
+		if p[0] == 0x12 {
+		}
+		// TODO: add time check for adding frames or not
+		// should be added at end of each conditional a la (p[0] == 0x12)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	out, err := os.Create(testGif)
+	if err != nil {
+		t.Error(err)
+	}
+	bgf, err := os.Open(darkcometpng)
+	if err != nil {
+		t.Error(err)
+	}
+	mapPic, picformat, err := image.Decode(bgf)
+	if picformat != "png" || err != nil {
+		if err != nil {
+			t.Error(err)
+		}
+		t.Error("expected png format")
+	}
+	bgf.Close()
+	// h:6144 w:7680
+	mapRect := image.Rect(0, 0, 6144, 7680)
+	err = drawGif(out, frames, mapPic, mapRect)
+	if err != nil {
+		t.Error(err)
+	}
+	out.Close
 	tf.Close()
 }

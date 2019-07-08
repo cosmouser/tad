@@ -113,3 +113,15 @@ type saveHealth struct {
 	MaxUnits int32
 	Health   [5001]int32
 }
+type playbackFrame struct {
+	Number int
+	Units map[uint16]*taUnit
+}
+type taUnit struct {
+	Owner int
+	NetID uint16
+	Finished bool
+	XPos int
+	YPos int
+	ZPos int
+}
