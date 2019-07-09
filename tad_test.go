@@ -21,6 +21,7 @@ var sample1 = path.Join("sample", "dckazikdidou.ted")
 var sample2 = path.Join("sample", "dcfnhessano.ted")
 var sample3 = path.Join("sample", "highground.ted")
 var sample4 = path.Join("sample", "cheats.ted")
+var sample5 = path.Join("sample", "dcfezkazik.ted")
 var darkcometpng = path.Join("sample", "dc.png")
 var testGif = path.Join("tmp", "test.gif")
 
@@ -854,7 +855,7 @@ func TestDrawGif(t *testing.T) {
 			// check to see if its the first unit aka commander
 			if int(tmp.UnitID) % g.MaxUnits == 1 {
 				unitmem[tmp.UnitID].Finished = true
-				unitSpaces[int(pr.Sender)-1] = tmp.UnitID - 1
+				unitSpaces[int(pr.Sender)-1] = tmp.UnitID
 			}
 		}
 		if pr.Data[0] == 0x12 {
@@ -875,7 +876,21 @@ func TestDrawGif(t *testing.T) {
 				delete(unitmem, tmp.Destroyed)
 			}
 		}
-		if curTime := clock/minuteInMilliseconds; curTime > lastTime {
+		if pr.Data[0] == 0x2c && len(pr.Data) >= 0x1a {
+			// if 0x9: - 0xc00 isn't the unitid's netid, ignore
+			x2cUnitID := binary.LittleEndian.Uint16(pr.Data[0x7:])
+			x2cNetID := binary.LittleEndian.Uint16(pr.Data[0x9:])
+			x2cXPos := binary.LittleEndian.Uint16(pr.Data[0xb:])
+			x2cYPos := binary.LittleEndian.Uint16(pr.Data[0xd:])
+			x2cUnitID += unitSpaces[int(pr.Sender)-1]
+			if tau, ok := unitmem[x2cUnitID]; ok && tau != nil {
+				if x2cNetID - 0xc00 == tau.NetID {
+					tau.XPos = int(x2cXPos)*16
+					tau.YPos = int(x2cYPos)*16
+				}
+			}
+		}
+		if curTime := clock/1000; curTime > lastTime {
 			addFrame()
 			lastTime = curTime
 		}
