@@ -909,7 +909,7 @@ func TestDrawGif(t *testing.T) {
 				}
 			}
 		}
-		if curTime := clock / 30000; curTime > lastTime {
+		if curTime := clock / 3000; curTime > lastTime {
 			addFrame()
 			lastTime = curTime
 		}

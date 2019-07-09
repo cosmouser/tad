@@ -65,8 +65,10 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 				case <-done:
 					return
 				case incomingFrame := <-frameStream:
+					// draw the map image into each frame - slow 21 fps
+					// dc := gg.NewContextForImage(mapPic)
+					// draw just the points - fast 70 fps
 					dc := gg.NewContext(mapPic.Bounds().Size().X, mapPic.Bounds().Size().Y)
-					dc.DrawImage(mapPic, 0, 0)
 					for _, tau := range incomingFrame.Units {
 						if tau != nil && tau.Finished {
 							dc.SetColor(tnt.TAPalette[0x55])
