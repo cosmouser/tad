@@ -2,19 +2,19 @@ package tad
 
 import (
 	"bytes"
-	"image"
 	"crypto/md5"
-	"encoding/hex"
 	"encoding/binary"
-	"errors"
 	"encoding/gob"
+	"encoding/hex"
+	"errors"
+	log "github.com/sirupsen/logrus"
+	"image"
 	"io"
 	"net"
 	"os"
 	"path"
 	"strings"
 	"testing"
-	log "github.com/sirupsen/logrus"
 )
 
 var sample1 = path.Join("sample", "dckazikdidou.ted")
@@ -22,10 +22,13 @@ var sample2 = path.Join("sample", "dcfnhessano.ted")
 var sample3 = path.Join("sample", "highground.ted")
 var sample4 = path.Join("sample", "cheats.ted")
 var sample5 = path.Join("sample", "dcfezkazik.ted")
+var sample6 = path.Join("sample", "dcracefn0608.ted")
+var sample7 = path.Join("sample", "dc3.ted")
 var darkcometpng = path.Join("sample", "dc.png")
 var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
+
 // loadDemo is a function for conveniently opening up demo files and playing
 // through their packets.
 // It will need a reader to parse the file.
@@ -102,7 +105,7 @@ func loadDemo(r io.ReadSeeker, testFunc func(packetRec, *game)) error {
 		}
 		g.Players[i].Status = string(p)
 		g.Players[i].Color = p[0x9e]
-		if p[0xa2] & 0x20 != 0 {
+		if p[0xa2]&0x20 != 0 {
 			g.Players[i].Cheats = true
 		}
 	}
@@ -130,8 +133,8 @@ func loadDemo(r io.ReadSeeker, testFunc func(packetRec, *game)) error {
 		if pr.Sender > 10 || pr.Sender < 1 {
 			if err != io.EOF {
 				log.WithFields(log.Fields{
-					"sender": pr.Sender,
-					"data": pr.Data,
+					"sender":    pr.Sender,
+					"data":      pr.Data,
 					"loopCount": loopCount,
 				}).Warn("move from odd sender")
 			}
@@ -146,11 +149,11 @@ func loadDemo(r io.ReadSeeker, testFunc func(packetRec, *game)) error {
 		return errors.New("seek to gameoffset failed")
 	}
 	var (
-		lastDronePack [10]uint32
+		lastDronePack   [10]uint32
 		posSyncComplete [10]uint32
-		recentPos [10]bool
-		lastSerial [10]uint32
-		masterHealth saveHealth
+		recentPos       [10]bool
+		lastSerial      [10]uint32
+		masterHealth    saveHealth
 	)
 	masterHealth.MaxUnits = int32(g.MaxUnits)
 	loopCount = 1
@@ -181,10 +184,10 @@ func loadDemo(r io.ReadSeeker, testFunc func(packetRec, *game)) error {
 				tmp := splitPacket2(&cpdb2, false)
 				// entry point for testFunc parameter
 				msg := packetRec{
-					Time: pr.Time,
-					Sender: pr.Sender,
+					Time:      pr.Time,
+					Sender:    pr.Sender,
 					IdemToken: pr.IdemToken,
-					Data: tmp,
+					Data:      tmp,
 				}
 				testFunc(msg, &g)
 				switch tmp[0] {
@@ -216,7 +219,6 @@ func TestLoadDemo(t *testing.T) {
 	}
 	tf.Close()
 }
-
 
 // TestLoadSection opens a ted file and tests loading of multiple sections
 func TestLoadSection(t *testing.T) {
@@ -290,6 +292,7 @@ func TestParseLobbyChat(t *testing.T) {
 	tf.Close()
 }
 func TestPlaybackMessages(t *testing.T) {
+	t.Skip()
 	tf, err := os.Open(sample2)
 	if err != nil {
 		t.Error(err)
@@ -806,7 +809,7 @@ func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
 	tf.Close()
 }
 func TestDrawGif(t *testing.T) {
-	tf, err := os.Open(sample1)
+	tf, err := os.Open(sample7)
 	if err != nil {
 		t.Error(err)
 	}
@@ -845,15 +848,15 @@ func TestDrawGif(t *testing.T) {
 				t.Error(err)
 			}
 			unitmem[tmp.UnitID] = &taUnit{
-				Owner: int(pr.Sender),
-				NetID: tmp.NetID,
+				Owner:    int(pr.Sender),
+				NetID:    tmp.NetID,
 				Finished: false,
-				XPos: int(tmp.XPos),
-				YPos: int(tmp.YPos),
-				ZPos: int(tmp.ZPos),
+				XPos:     int(tmp.XPos),
+				YPos:     int(tmp.YPos),
+				ZPos:     int(tmp.ZPos),
 			}
 			// check to see if its the first unit aka commander
-			if int(tmp.UnitID) % g.MaxUnits == 1 {
+			if int(tmp.UnitID)%g.MaxUnits == 1 {
 				unitmem[tmp.UnitID].Finished = true
 				unitSpaces[int(pr.Sender)-1] = tmp.UnitID
 			}
@@ -876,6 +879,22 @@ func TestDrawGif(t *testing.T) {
 				delete(unitmem, tmp.Destroyed)
 			}
 		}
+		if pr.Data[0] == 0x0d {
+			tmp := &packet0x0d{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				t.Error(err)
+			}
+			if tau, ok := unitmem[tmp.ShooterID]; ok && tau != nil {
+				tau.XPos = int(tmp.OriginX)
+				tau.YPos = int(tmp.OriginY)
+				tau.ZPos = int(tmp.OriginZ)
+			}
+			if tau, ok := unitmem[tmp.ShotID]; ok && tau != nil {
+				tau.XPos = int(tmp.DestX)
+				tau.YPos = int(tmp.DestY)
+				tau.ZPos = int(tmp.DestZ)
+			}
+		}
 		if pr.Data[0] == 0x2c && len(pr.Data) >= 0x1a {
 			// if 0x9: - 0xc00 isn't the unitid's netid, ignore
 			x2cUnitID := binary.LittleEndian.Uint16(pr.Data[0x7:])
@@ -884,13 +903,13 @@ func TestDrawGif(t *testing.T) {
 			x2cYPos := binary.LittleEndian.Uint16(pr.Data[0xd:])
 			x2cUnitID += unitSpaces[int(pr.Sender)-1]
 			if tau, ok := unitmem[x2cUnitID]; ok && tau != nil {
-				if x2cNetID - 0xc00 == tau.NetID {
-					tau.XPos = int(x2cXPos)*16
-					tau.YPos = int(x2cYPos)*16
+				if x2cNetID-0xc00 == tau.NetID {
+					tau.XPos = int(x2cXPos) * 16
+					tau.YPos = int(x2cYPos) * 16
 				}
 			}
 		}
-		if curTime := clock/1000; curTime > lastTime {
+		if curTime := clock / 30000; curTime > lastTime {
 			addFrame()
 			lastTime = curTime
 		}

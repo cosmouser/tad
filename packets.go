@@ -1,9 +1,9 @@
 package tad
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/hex"
+	"fmt"
 )
 
 type taPacket interface {
@@ -168,7 +168,7 @@ func (p *packet0x0b) GetMarker() byte {
 
 // Chat message
 type packet0x05 struct {
-	Marker       byte
+	Marker  byte
 	Message [64]byte
 }
 
@@ -181,21 +181,35 @@ func (p *packet0x05) printMessage(unitNames map[uint16]string, unitMem map[uint1
 func (p *packet0x05) GetMarker() byte {
 	return p.Marker
 }
-// Unknown
+
+// Projectile
 type packet0x0d struct {
-	Marker   byte
-	Unknown1 [32]byte
-	UnitID1  uint16
-	UnitID2  uint16
-	Unknown2 byte
+	Marker    byte
+	Unknown1  uint16
+	OriginX   uint16
+	Unknown2  uint16
+	OriginZ   uint16
+	Unknown3  uint16
+	OriginY   uint16
+	Unknown4  uint16
+	DestX     uint16
+	Unknown5  uint16
+	DestZ     uint16
+	Unknown6  uint16
+	DestY     uint16
+	Unknownk  [6]byte
+	ShotID    uint16
+	ShooterID uint16
+	Unknown7  byte
 }
 
 // Unit state change
 type packet0x11 struct {
-	Marker  byte
-	UnitID  uint16
-	State byte // 1=on, 9=factory is building
+	Marker byte
+	UnitID uint16
+	State  byte // 1=on, 9=factory is building
 }
+
 func (p *packet0x11) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
 	return fmt.Sprintf("%02x: %v (%04x) entered state %02x",
 		p.Marker,
@@ -206,13 +220,15 @@ func (p *packet0x11) printMessage(unitNames map[uint16]string, unitMem map[uint1
 func (p *packet0x11) GetMarker() byte {
 	return p.Marker
 }
+
 // Unitstat+move
 type packet0x2c struct {
 	Marker  byte
-	Sub byte
+	Sub     byte
 	Unknown byte
 	CurrNr  uint32
 }
+
 func (p *packet0x2c) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
 	return fmt.Sprintf("%02x: Marker: ",
 		p.Marker)
