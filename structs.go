@@ -20,7 +20,6 @@ type game struct {
 	RecDate string
 	MaxUnits int
 	TimeToDie [10]int
-	Killed    [10]bool
 	TotalMoves int
 	Unitsum string
 }
@@ -52,6 +51,7 @@ type playerBlock struct {
 type packetRec struct {
 	Time   uint16 // time since last packet in milliseconds
 	Sender byte
+	IdemToken   string // idempotency token, arbitrary uuid
 	Data   []byte
 }
 

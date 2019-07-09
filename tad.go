@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"io"
 )
@@ -172,6 +173,7 @@ func loadMove(r io.Reader) (pr packetRec, err error) {
 		return pr, err
 	}
 	pr.Sender = sender
+	pr.IdemToken = uuid.New().String()
 	datLen := len(dat) - 3
 	pr.Data = make([]byte, datLen)
 	if n, err := datr.Read(pr.Data); n != datLen || err != nil {

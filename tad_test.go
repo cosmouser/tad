@@ -2,6 +2,7 @@ package tad
 
 import (
 	"bytes"
+	"image"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/binary"
@@ -23,12 +24,13 @@ var sample4 = path.Join("sample", "cheats.ted")
 var darkcometpng = path.Join("sample", "dc.png")
 var testGif = path.Join("tmp", "test.gif")
 
+const minuteInMilliseconds = 60000
 // loadDemo is a function for conveniently opening up demo files and playing
 // through their packets.
 // It will need a reader to parse the file.
 // It will need a function to use on the packets
 // It needs a logging flag
-func loadDemo(r io.ReadSeeker, testFunc func([]byte, byte, *game)) error {
+func loadDemo(r io.ReadSeeker, testFunc func(packetRec, *game)) error {
 	g := game{}
 	sum, err := parseSummary(r)
 	if err != nil {
@@ -176,10 +178,14 @@ func loadDemo(r io.ReadSeeker, testFunc func([]byte, byte, *game)) error {
 			cpdb2 := append([]byte{}, cpdb[7:]...)
 			for {
 				tmp := splitPacket2(&cpdb2, false)
-				if tmp[0] != 0x2c || (tmp[0] == 0x2c && tmp[1] != 0x0b) {
-					// entry point for testFunc parameter
-					testFunc(tmp, pr.Sender, &g)
+				// entry point for testFunc parameter
+				msg := packetRec{
+					Time: pr.Time,
+					Sender: pr.Sender,
+					IdemToken: pr.IdemToken,
+					Data: tmp,
 				}
+				testFunc(msg, &g)
 				switch tmp[0] {
 				case 0x2c:
 					ip := binary.LittleEndian.Uint32(tmp[3:])
@@ -201,8 +207,8 @@ func TestLoadDemo(t *testing.T) {
 		t.Error(err)
 	}
 	counter := make(map[byte]int)
-	err = loadDemo(tf, func(p []byte, s byte, g *game) {
-		counter[p[0]]++
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		counter[pr.Data[0]]++
 	})
 	if err != nil {
 		t.Error(err)
@@ -788,9 +794,9 @@ func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
 		t.Error(err)
 	}
 	gobf.Close()
-	err = loadDemo(tf, func(p []byte, sender byte, g *game) {
+	err = loadDemo(tf, func(pr packetRec, g *game) {
 		if os.Getenv("playbackMsgs") == "enabled" {
-			t.Log(playbackMsg(sender, p, unitnames, unitmem))
+			t.Log(playbackMsg(pr.Sender, pr.Data, unitnames, unitmem))
 		}
 	})
 	if err != nil {
@@ -811,43 +817,68 @@ func TestDrawGif(t *testing.T) {
 	unitmem := make(map[uint16]*taUnit)
 	addFrame := func() {
 		newFrame := playbackFrame{}
-		newFrame.Number = len(frames)-1
-		newUnitSnapshot := make(map[uint16]*taUnit)
+		newFrame.Number = len(frames)
+		newFrame.Units = make(map[uint16]*taUnit)
 		for k, v := range unitmem {
-			newUnitSnapshot[k] = new(taUnit)
-			newUnitSnapshot[k].Owner = v.Owner
-			newUnitSnapshot[k].NetID = v.NetID
-			newUnitSnapshot[k].Finished = v.Finished
-			newUnitSnapshot[k].XPos = v.XPos
-			newUnitSnapshot[k].YPos = v.YPos
-			newUnitSnapshot[k].ZPos = v.ZPos
+			newFrame.Units[k] = new(taUnit)
+			newFrame.Units[k].Owner = v.Owner
+			newFrame.Units[k].NetID = v.NetID
+			newFrame.Units[k].Finished = v.Finished
+			newFrame.Units[k].XPos = v.XPos
+			newFrame.Units[k].YPos = v.YPos
+			newFrame.Units[k].ZPos = v.ZPos
 		}
 		frames = append(frames, newFrame)
 	}
-	err = loadDemo(tf, func(p []byte, sender byte, g *game) {
-		if p[0] == 0x9 {
+	var clock, lastTime int
+	var lastToken string
+	var unitSpaces [10]uint16
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x09 {
 			tmp := &packet0x09{}
-			err = binary.Read(pr, binary.LittleEndian, tmp)
-			if err != nil {
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
 				t.Error(err)
 			}
 			unitmem[tmp.UnitID] = &taUnit{
-				Owner: int(sender),
+				Owner: int(pr.Sender),
 				NetID: tmp.NetID,
 				Finished: false,
-				XPos: int(XPos),
-				YPos: int(YPos),
-				ZPos: int(ZPos),
+				XPos: int(tmp.XPos),
+				YPos: int(tmp.YPos),
+				ZPos: int(tmp.ZPos),
 			}
 			// check to see if its the first unit aka commander
-			if tmp.UnitID % g.MaxUnits == 1 {
+			if int(tmp.UnitID) % g.MaxUnits == 1 {
 				unitmem[tmp.UnitID].Finished = true
+				unitSpaces[int(pr.Sender)-1] = tmp.UnitID - 1
 			}
 		}
-		if p[0] == 0x12 {
+		if pr.Data[0] == 0x12 {
+			tmp := &packet0x12{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				t.Error(err)
+			}
+			if tau, ok := unitmem[tmp.BuiltID]; ok && tau != nil {
+				unitmem[tmp.BuiltID].Finished = true
+			}
 		}
-		// TODO: add time check for adding frames or not
-		// should be added at end of each conditional a la (p[0] == 0x12)
+		if pr.Data[0] == 0x0c {
+			tmp := &packet0x0c{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				t.Error(err)
+			}
+			if tau, ok := unitmem[tmp.Destroyed]; ok || tau != nil {
+				delete(unitmem, tmp.Destroyed)
+			}
+		}
+		if curTime := clock/minuteInMilliseconds; curTime > lastTime {
+			addFrame()
+			lastTime = curTime
+		}
 	})
 	if err != nil {
 		t.Error(err)
@@ -874,6 +905,6 @@ func TestDrawGif(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	out.Close
+	out.Close()
 	tf.Close()
 }
