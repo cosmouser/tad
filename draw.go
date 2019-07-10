@@ -20,6 +20,13 @@ type numberedFrame struct {
 	Paletted *image.Paletted
 }
 
+// func (t *taUnit) getXY(timeVal int) (X, Y int) {
+// 	// calculate vector between (PrevX, PrevY) and 
+// 	// (CurX, CurY)
+// 	Vector
+// 	return
+// }
+
 func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image.Rectangle) error {
 	outGif := gif.GIF{}
 	outGif.Image = make([]*image.Paletted, len(frames))
@@ -72,10 +79,10 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 					for _, tau := range incomingFrame.Units {
 						if tau != nil && tau.Finished {
 							dc.SetColor(tnt.TAPalette[0x55])
-							dc.DrawPoint(scale*float64(tau.XPos), scale*float64(tau.YPos), 3.8)
+							dc.DrawPoint(scale*float64(tau.Pos.X), scale*float64(tau.Pos.Y), 3.8)
 							dc.Fill()
 							dc.SetColor(playerColors[tau.Owner-1])
-							dc.DrawPoint(scale*float64(tau.XPos), scale*float64(tau.YPos), 3)
+							dc.DrawPoint(scale*float64(tau.Pos.X), scale*float64(tau.Pos.Y), 3)
 							dc.Fill()
 						}
 					}

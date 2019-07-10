@@ -121,7 +121,13 @@ type taUnit struct {
 	Owner int
 	NetID uint16
 	Finished bool
-	XPos int
-	YPos int
-	ZPos int
+	Pos point
+	CurPos point
+	CurTime int
+	PrevPos point
+	prevTime int
+}
+type point struct {
+	X int
+	Y int
 }

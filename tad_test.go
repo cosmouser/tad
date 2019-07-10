@@ -828,9 +828,8 @@ func TestDrawGif(t *testing.T) {
 			newFrame.Units[k].Owner = v.Owner
 			newFrame.Units[k].NetID = v.NetID
 			newFrame.Units[k].Finished = v.Finished
-			newFrame.Units[k].XPos = v.XPos
-			newFrame.Units[k].YPos = v.YPos
-			newFrame.Units[k].ZPos = v.ZPos
+			newFrame.Units[k].Pos.X = v.Pos.X
+			newFrame.Units[k].Pos.Y = v.Pos.Y
 		}
 		frames = append(frames, newFrame)
 	}
@@ -851,9 +850,10 @@ func TestDrawGif(t *testing.T) {
 				Owner:    int(pr.Sender),
 				NetID:    tmp.NetID,
 				Finished: false,
-				XPos:     int(tmp.XPos),
-				YPos:     int(tmp.YPos),
-				ZPos:     int(tmp.ZPos),
+				Pos:     point{
+					X: int(tmp.XPos),
+					Y: int(tmp.YPos),
+				},
 			}
 			// check to see if its the first unit aka commander
 			if int(tmp.UnitID)%g.MaxUnits == 1 {
@@ -885,14 +885,12 @@ func TestDrawGif(t *testing.T) {
 				t.Error(err)
 			}
 			if tau, ok := unitmem[tmp.ShooterID]; ok && tau != nil {
-				tau.XPos = int(tmp.OriginX)
-				tau.YPos = int(tmp.OriginY)
-				tau.ZPos = int(tmp.OriginZ)
+				tau.Pos.X = int(tmp.OriginX)
+				tau.Pos.Y = int(tmp.OriginY)
 			}
 			if tau, ok := unitmem[tmp.ShotID]; ok && tau != nil {
-				tau.XPos = int(tmp.DestX)
-				tau.YPos = int(tmp.DestY)
-				tau.ZPos = int(tmp.DestZ)
+				tau.Pos.X = int(tmp.DestX)
+				tau.Pos.Y = int(tmp.DestY)
 			}
 		}
 		if pr.Data[0] == 0x2c && len(pr.Data) >= 0x1a {
@@ -904,12 +902,12 @@ func TestDrawGif(t *testing.T) {
 			x2cUnitID += unitSpaces[int(pr.Sender)-1]
 			if tau, ok := unitmem[x2cUnitID]; ok && tau != nil {
 				if x2cNetID-0xc00 == tau.NetID {
-					tau.XPos = int(x2cXPos) * 16
-					tau.YPos = int(x2cYPos) * 16
+					tau.Pos.X = int(x2cXPos) * 16
+					tau.Pos.Y = int(x2cYPos) * 16
 				}
 			}
 		}
-		if curTime := clock / 3000; curTime > lastTime {
+		if curTime := clock / 6000; curTime > lastTime {
 			addFrame()
 			lastTime = curTime
 		}
