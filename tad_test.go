@@ -809,7 +809,7 @@ func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
 	tf.Close()
 }
 func TestDrawGif(t *testing.T) {
-	tf, err := os.Open(sample7)
+	tf, err := os.Open(sample1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -819,8 +819,9 @@ func TestDrawGif(t *testing.T) {
 	// placeholder for map of unit positions
 	frames := []playbackFrame{}
 	unitmem := make(map[uint16]*taUnit)
-	addFrame := func() {
+	addFrame := func(tval int) {
 		newFrame := playbackFrame{}
+		newFrame.Time = tval
 		newFrame.Number = len(frames)
 		newFrame.Units = make(map[uint16]*taUnit)
 		for k, v := range unitmem {
@@ -830,6 +831,18 @@ func TestDrawGif(t *testing.T) {
 			newFrame.Units[k].Finished = v.Finished
 			newFrame.Units[k].Pos.X = v.Pos.X
 			newFrame.Units[k].Pos.Y = v.Pos.Y
+			if newFrame.Units[k].CurFrame.Frame == 0 {
+				newFrame.Units[k].CurFrame = frameTime{
+					Frame: newFrame.Number,
+					Time: tval,
+				}
+			} else {
+				newFrame.Units[k].PrevFrame = newFrame.Units[k].CurFrame
+				newFrame.Units[k].CurFrame = frameTime{
+					Frame: newFrame.Number,
+					Time: tval,
+				}
+			}
 		}
 		frames = append(frames, newFrame)
 	}
@@ -851,6 +864,10 @@ func TestDrawGif(t *testing.T) {
 				NetID:    tmp.NetID,
 				Finished: false,
 				Pos:     point{
+					X: int(tmp.XPos),
+					Y: int(tmp.YPos),
+				},
+				CurPos: point{
 					X: int(tmp.XPos),
 					Y: int(tmp.YPos),
 				},
@@ -887,10 +904,18 @@ func TestDrawGif(t *testing.T) {
 			if tau, ok := unitmem[tmp.ShooterID]; ok && tau != nil {
 				tau.Pos.X = int(tmp.OriginX)
 				tau.Pos.Y = int(tmp.OriginY)
+				tau.PrevPos.X = tau.CurPos.X
+				tau.PrevPos.Y = tau.CurPos.Y
+				tau.CurPos.X = tau.Pos.X
+				tau.CurPos.Y = tau.Pos.Y
 			}
 			if tau, ok := unitmem[tmp.ShotID]; ok && tau != nil {
 				tau.Pos.X = int(tmp.DestX)
 				tau.Pos.Y = int(tmp.DestY)
+				tau.PrevPos.X = tau.CurPos.X
+				tau.PrevPos.Y = tau.CurPos.Y
+				tau.CurPos.X = tau.Pos.X
+				tau.CurPos.Y = tau.Pos.Y
 			}
 		}
 		if pr.Data[0] == 0x2c && len(pr.Data) >= 0x1a {
@@ -904,16 +929,28 @@ func TestDrawGif(t *testing.T) {
 				if x2cNetID-0xc00 == tau.NetID {
 					tau.Pos.X = int(x2cXPos) * 16
 					tau.Pos.Y = int(x2cYPos) * 16
+					tau.PrevPos.X = tau.CurPos.X
+					tau.PrevPos.Y = tau.CurPos.Y
+					tau.CurPos.X = tau.Pos.X
+					tau.CurPos.Y = tau.Pos.Y
 				}
 			}
 		}
-		if curTime := clock / 6000; curTime > lastTime {
-			addFrame()
+		if curTime := clock / 3000; curTime > lastTime {
+			addFrame(clock)
 			lastTime = curTime
 		}
 	})
 	if err != nil {
 		t.Error(err)
+	}
+	// correct positions
+	for i := len(frames)-1; i >= 0; i-- {
+		for f, tau := range frames[i].Units {
+			if frames[i].Units[f].PrevFrame.Frame != 0 {
+				frames[i].Units[f].Pos = tau.getPos(frames[i].Time)
+			}
+		}
 	}
 	out, err := os.Create(testGif)
 	if err != nil {

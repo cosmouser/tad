@@ -115,6 +115,7 @@ type saveHealth struct {
 }
 type playbackFrame struct {
 	Number int
+	Time int
 	Units map[uint16]*taUnit
 }
 type taUnit struct {
@@ -123,9 +124,13 @@ type taUnit struct {
 	Finished bool
 	Pos point
 	CurPos point
-	CurTime int
+	CurFrame frameTime
 	PrevPos point
-	prevTime int
+	PrevFrame frameTime
+}
+type frameTime struct {
+	Frame int
+	Time int
 }
 type point struct {
 	X int

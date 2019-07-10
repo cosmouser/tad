@@ -20,12 +20,22 @@ type numberedFrame struct {
 	Paletted *image.Paletted
 }
 
-// func (t *taUnit) getXY(timeVal int) (X, Y int) {
-// 	// calculate vector between (PrevX, PrevY) and 
-// 	// (CurX, CurY)
-// 	Vector
-// 	return
-// }
+func (t *taUnit) getPos(timeVal int) point {
+	// calculate vector between CurPos and PrevPos 
+	vector := point{
+		X: t.CurPos.X - t.PrevPos.X,
+		Y: t.CurPos.Y - t.PrevPos.Y,
+	}
+	// calculate distance between CurPos and PrevPos
+	distance := math.Sqrt(float64((vector.X*vector.X)+(vector.Y*vector.Y)))
+	duration := float64(t.CurFrame.Time - t.PrevFrame.Time)
+	length := (float64(timeVal)/duration)*distance
+	result := point{
+		X: t.PrevPos.X + (vector.X * int(length)),
+		Y: t.PrevPos.Y + (vector.Y * int(length)),
+	}
+	return result
+}
 
 func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image.Rectangle) error {
 	outGif := gif.GIF{}
