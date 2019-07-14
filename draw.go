@@ -37,31 +37,31 @@ func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
 	case buildingClass:
 		dc.DrawRectangle(scale*float64(t.Pos.X)-4, scale*float64(t.Pos.Y)-4, 8, 8)
 		dc.Fill()
-		dc.SetColor(colors[t.Owner-1])
+		dc.SetColor(colors[t.Owner])
 		dc.DrawRectangle(scale*float64(t.Pos.X)-3, scale*float64(t.Pos.Y)-3, 6, 6)
 		dc.Fill()
 	case mobileClass:
 		dc.DrawPoint(scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 3.8)
 		dc.Fill()
-		dc.SetColor(colors[t.Owner-1])
+		dc.SetColor(colors[t.Owner])
 		dc.DrawPoint(scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 3)
 		dc.Fill()
 	case factoryClass:
 		dc.DrawRoundedRectangle(scale*float64(t.Pos.X)-6, scale*float64(t.Pos.Y)-6, 12, 12, 1)
 		dc.Fill()
-		dc.SetColor(colors[t.Owner-1])
+		dc.SetColor(colors[t.Owner])
 		dc.DrawRoundedRectangle(scale*float64(t.Pos.X)-5, scale*float64(t.Pos.Y)-5, 10, 10, 1)
 		dc.Fill()
 	case commanderClass:
 		dc.DrawRegularPolygon(5, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 5, 0)
 		dc.Fill()
-		dc.SetColor(colors[t.Owner-1])
+		dc.SetColor(colors[t.Owner])
 		dc.DrawRegularPolygon(5, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 4, 0)
 		dc.Fill()
 	case airClass:
 		dc.DrawRegularPolygon(3, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 5, 0)
 		dc.Fill()
-		dc.SetColor(colors[t.Owner-1])
+		dc.SetColor(colors[t.Owner])
 		dc.DrawRegularPolygon(3, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 4, 0)
 		dc.Fill()
 	}

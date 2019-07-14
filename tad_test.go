@@ -957,7 +957,16 @@ func TestDrawGif(t *testing.T) {
 	}
 	colorMap := make(map[int]int)
 	for i := range gp.Players {
-		colorMap[int(gp.Players[i].Number)] = int(gp.Players[i].Color)+1
+		colorMap[int(gp.Players[i].Number)] = int(gp.Players[i].Color)
+	}
+	for i := range colorMap {
+		for j := range colorMap {
+			if i != j && colorMap[i] == colorMap[j] {
+				for m := range colorMap {
+					colorMap[m] = m
+				}
+			}
+		}
 	}
 	// update frames with calculated unit positions
 	nullPoint := point{
