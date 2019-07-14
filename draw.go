@@ -28,6 +28,20 @@ const (
 	factoryClass
 	airClass
 )
+
+type maskRect struct {
+	min, max image.Point
+}
+func (mr *maskRect) ColorModel() color.Model {
+	return color.AlphaModel
+}
+func (mr *maskRect) Bounds() image.Rectangle {
+	return image.Rect(mr.min.X, mr.min.Y, mr.max.X, mr.max.Y)
+}
+func (mr *maskRect) At(x, y int) color.Color {
+	return color.Alpha{255}
+}
+
 func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
 	dc.SetColor(tnt.TAPalette[0x55])
 	if t == nil || t.Finished == false {
@@ -47,10 +61,10 @@ func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
 		dc.DrawPoint(scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 3)
 		dc.Fill()
 	case factoryClass:
-		dc.DrawRoundedRectangle(scale*float64(t.Pos.X)-6, scale*float64(t.Pos.Y)-6, 12, 12, 1)
+		dc.DrawRoundedRectangle(scale*float64(t.Pos.X)-6, scale*float64(t.Pos.Y)-6, 12, 12, 2)
 		dc.Fill()
 		dc.SetColor(colors[t.Owner])
-		dc.DrawRoundedRectangle(scale*float64(t.Pos.X)-5, scale*float64(t.Pos.Y)-5, 10, 10, 1)
+		dc.DrawRoundedRectangle(scale*float64(t.Pos.X)-5, scale*float64(t.Pos.Y)-5, 10, 10, 2)
 		dc.Fill()
 	case commanderClass:
 		dc.DrawRegularPolygon(5, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 5, 0)
@@ -65,6 +79,7 @@ func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
 		dc.DrawRegularPolygon(3, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 4, 0)
 		dc.Fill()
 	}
+	return
 }
 
 func (t *taUnit) updatePos(timeVal int) {
@@ -89,9 +104,14 @@ func (t *taUnit) updatePos(timeVal int) {
 }
 
 func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image.Rectangle) error {
-	outGif := gif.GIF{}
-	outGif.Image = make([]*image.Paletted, len(frames))
-	outGif.Delay = make([]int, len(frames))
+	outGif := gif.GIF{
+		Disposal: make([]byte, len(frames)),
+		Image: make([]*image.Paletted, len(frames)),
+		Delay: make([]int, len(frames)),
+	}
+	for i := range outGif.Disposal {
+		outGif.Disposal[i] = gif.DisposalPrevious
+	}
 	maxDim := math.Max(float64(mapPic.Bounds().Size().X), float64(mapPic.Bounds().Size().Y))
 	var scale float64
 	if rect.Size().X > rect.Size().Y {
@@ -100,6 +120,8 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 		scale = maxDim / float64(rect.Size().Y)
 	}
 	ts1 := time.Now()
+	gifPalette := tnt.TAPalette
+	gifPalette[0] = image.Transparent
 	playerColors := []color.RGBA{
 		tnt.TAPalette[252].(color.RGBA),
 		tnt.TAPalette[249].(color.RGBA),
@@ -124,6 +146,8 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 	}
 	done := make(chan interface{})
 	frameStream := frameGen()
+
+
 	frameDrawer := func(done <-chan interface{}, frameStream <-chan playbackFrame) <-chan numberedFrame {
 		palettedStream := make(chan numberedFrame)
 		go func() {
@@ -141,7 +165,7 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 						drawUnit(dc, tau, scale, playerColors)
 					}
 					imgItem := dc.Image()
-					palettedImage := image.NewPaletted(imgItem.Bounds(), tnt.TAPalette)
+					palettedImage := image.NewPaletted(imgItem.Bounds(), gifPalette)
 					draw.Draw(palettedImage, palettedImage.Rect, imgItem, imgItem.Bounds().Min, draw.Over)
 					log.Printf("frame %d of %d drawn", incomingFrame.Number, len(frames))
 					palettedStream <- numberedFrame{
