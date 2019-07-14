@@ -832,6 +832,7 @@ func TestDrawGif(t *testing.T) {
 			newFrame.Units[k].Pos.Time = v.Pos.Time
 			newFrame.Units[k].Pos.ID = v.Pos.ID
 			newFrame.Units[k].ID = v.ID
+			newFrame.Units[k].Class = v.Class
 		}
 		frames = append(frames, newFrame)
 	}
@@ -863,6 +864,7 @@ func TestDrawGif(t *testing.T) {
 			// check to see if its the first unit aka commander
 			if int(tmp.UnitID)%g.MaxUnits == 1 {
 				unitmem[tmp.UnitID].Finished = true
+				unitmem[tmp.UnitID].Class = commanderClass
 				unitSpaces[int(pr.Sender)-1] = tmp.UnitID
 			}
 		}
@@ -873,6 +875,31 @@ func TestDrawGif(t *testing.T) {
 			}
 			if tau, ok := unitmem[tmp.BuiltID]; ok && tau != nil {
 				unitmem[tmp.BuiltID].Finished = true
+			}
+			if tau, ok := unitmem[tmp.BuiltByID]; ok && tau != nil {
+				if tau.Class == factoryClass {
+					if tau2, ok := unitmem[tmp.BuiltID]; ok && tau2 != nil {
+						unitmem[tmp.BuiltID].Class = mobileClass
+					}
+				}
+			}
+
+		}
+		if pr.Data[0] == 0x11 {
+			tmp := &packet0x11{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				t.Error(err)
+			}
+			// 9 == factory is building
+			if tmp.State == 9 {
+				if tau, ok := unitmem[tmp.UnitID]; ok && tau != nil {
+					tau.Class = factoryClass
+				}
+			}
+			if tmp.State == 2 {
+				if tau, ok := unitmem[tmp.UnitID]; ok && tau != nil && tau.Class == mobileClass {
+					tau.Class = airClass
+				}
 			}
 		}
 		if pr.Data[0] == 0x0c {

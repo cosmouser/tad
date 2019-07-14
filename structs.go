@@ -124,6 +124,7 @@ type taUnit struct {
 	Finished bool
 	Pos point
 	NextPos point
+	Class unitClass
 	ID string
 }
 type point struct {

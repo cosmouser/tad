@@ -20,6 +20,53 @@ type numberedFrame struct {
 	Paletted *image.Paletted
 }
 
+type unitClass int
+const (
+	buildingClass unitClass = iota
+	commanderClass
+	mobileClass
+	factoryClass
+	airClass
+)
+func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
+	dc.SetColor(tnt.TAPalette[0x55])
+	if t == nil || t.Finished == false {
+		return
+	}
+	switch t.Class {
+	case buildingClass:
+		dc.DrawRectangle(scale*float64(t.Pos.X)-4, scale*float64(t.Pos.Y)-4, 8, 8)
+		dc.Fill()
+		dc.SetColor(colors[t.Owner-1])
+		dc.DrawRectangle(scale*float64(t.Pos.X)-3, scale*float64(t.Pos.Y)-3, 6, 6)
+		dc.Fill()
+	case mobileClass:
+		dc.DrawPoint(scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 3.8)
+		dc.Fill()
+		dc.SetColor(colors[t.Owner-1])
+		dc.DrawPoint(scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 3)
+		dc.Fill()
+	case factoryClass:
+		dc.DrawRoundedRectangle(scale*float64(t.Pos.X)-6, scale*float64(t.Pos.Y)-6, 12, 12, 1)
+		dc.Fill()
+		dc.SetColor(colors[t.Owner-1])
+		dc.DrawRoundedRectangle(scale*float64(t.Pos.X)-5, scale*float64(t.Pos.Y)-5, 10, 10, 1)
+		dc.Fill()
+	case commanderClass:
+		dc.DrawRegularPolygon(5, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 5, 0)
+		dc.Fill()
+		dc.SetColor(colors[t.Owner-1])
+		dc.DrawRegularPolygon(5, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 4, 0)
+		dc.Fill()
+	case airClass:
+		dc.DrawRegularPolygon(3, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 5, 0)
+		dc.Fill()
+		dc.SetColor(colors[t.Owner-1])
+		dc.DrawRegularPolygon(3, scale*float64(t.Pos.X), scale*float64(t.Pos.Y), 4, 0)
+		dc.Fill()
+	}
+}
+
 func (t *taUnit) updatePos(timeVal int) {
 	vectorX := float64(t.NextPos.X - t.Pos.X)
 	vectorY := float64(t.NextPos.Y - t.Pos.Y)
@@ -91,14 +138,7 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 					// draw just the points - fast 70 fps
 					dc := gg.NewContext(mapPic.Bounds().Size().X, mapPic.Bounds().Size().Y)
 					for _, tau := range incomingFrame.Units {
-						if tau != nil && tau.Finished {
-							dc.SetColor(tnt.TAPalette[0x55])
-							dc.DrawPoint(scale*float64(tau.Pos.X), scale*float64(tau.Pos.Y), 3.8)
-							dc.Fill()
-							dc.SetColor(playerColors[tau.Owner-1])
-							dc.DrawPoint(scale*float64(tau.Pos.X), scale*float64(tau.Pos.Y), 3)
-							dc.Fill()
-						}
+						drawUnit(dc, tau, scale, playerColors)
 					}
 					imgItem := dc.Image()
 					palettedImage := image.NewPaletted(imgItem.Bounds(), tnt.TAPalette)
