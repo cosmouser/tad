@@ -26,6 +26,7 @@ func (t *taUnit) updatePos(timeVal int) {
 	magnitude := math.Sqrt((vectorX*vectorX)+(vectorY*vectorY))
 	if magnitude == 0 {
 		// unit stays in the same place
+		// no update required
 		return
 	}
 	unitVectorX := vectorX/magnitude
@@ -35,26 +36,6 @@ func (t *taUnit) updatePos(timeVal int) {
 	distanceModifier := timeDiff2/timeDiff1
 	newX := t.Pos.X + int(unitVectorX * magnitude * distanceModifier)
 	newY := t.Pos.Y + int(unitVectorY * magnitude * distanceModifier)
-	// log.WithFields(log.Fields{
-	// 	"timeDiffBig": timeDiff1,
-	// 	"timeDiffSmall": timeDiff2,
-	// 	"t.NextPos.Time": t.NextPos.Time,
-	// 	"t.Pos.Time": t.Pos.Time,
-	// 	"t.Pos.X": t.Pos.X,
-	// 	"t.Pos.Y": t.Pos.Y,
-	// 	"newX": newX,
-	// 	"newY": newY,
-	// 	"xDiff": xDiff,
-	// 	"yDiff": yDiff,
-	// }).Info()
-	// if math.IsNaN(xDiff) || math.IsNaN(yDiff) {
-	// 	log.WithFields(log.Fields{
-	// 		"unitVectorX": unitVectorX,
-	// 		"unitVectorY": unitVectorX,
-	// 		"magnitude": magnitude,
-	// 		"distanceModifier": distanceModifier,
-	// 	}).Warn("got NaN diff")
-	// }
 	t.Pos.X = newX
 	t.Pos.Y = newY
 	t.Pos.Time = timeVal

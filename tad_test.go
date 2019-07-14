@@ -32,9 +32,6 @@ const minuteInMilliseconds = 60000
 
 // loadDemo is a function for conveniently opening up demo files and playing
 // through their packets.
-// It will need a reader to parse the file.
-// It will need a function to use on the packets
-// It needs a logging flag
 func loadDemo(r io.ReadSeeker, testFunc func(packetRec, *game)) error {
 	g := game{}
 	sum, err := parseSummary(r)
