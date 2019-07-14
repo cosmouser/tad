@@ -5,9 +5,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"io"
 )
 
 // loadSection gets the uint16 length and reads that minus 2 bytes
@@ -63,7 +64,6 @@ func parseSummary(r io.Reader) (sum summary, err error) {
 	err = binary.Read(&dbuf, binary.LittleEndian, &sum)
 	return
 }
-
 
 func parseLobbyChat(extra extraSector) (messages []string, err error) {
 	raw := bytes.Split(extra.data, []byte{0x0d})
@@ -255,7 +255,6 @@ func decompressLZ77(compressed []byte, prefixLen int) (decompressed []byte, err 
 			tag = tag >> 1
 		}
 	}
-	return
 }
 
 func decryptPacket(in []byte) (out []byte, err error) {
@@ -425,7 +424,8 @@ func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c boo
 	if c[0] == 0x04 {
 		ctmp, err := decompressLZ77([]byte(c), 3)
 		if err != nil {
-			log.Fatal(err) }
+			log.Fatal(err)
+		}
 		c = ctmp
 	}
 	c = c[3:]
@@ -608,13 +608,12 @@ func splitPacket(data []byte) (out []byte) {
 	if pl == 0 {
 		out = []byte{}
 		return
-	} else {
-		out = make([]byte, pl)
-		dr := bytes.NewReader(data)
-		bytesRead, err := dr.Read(out)
-		if bytesRead != pl || err != nil {
-			log.Fatalf("failed read for %02x packet", data[0])
-		}
+	}
+	out = make([]byte, pl)
+	dr := bytes.NewReader(data)
+	bytesRead, err := dr.Read(out)
+	if bytesRead != pl || err != nil {
+		log.Fatalf("failed read for %02x packet", data[0])
 	}
 	return
 }
