@@ -123,16 +123,12 @@ type taUnit struct {
 	NetID uint16
 	Finished bool
 	Pos point
-	CurPos point
-	CurFrame frameTime
-	PrevPos point
-	PrevFrame frameTime
-}
-type frameTime struct {
-	Frame int
-	Time int
+	NextPos point
+	ID string
 }
 type point struct {
 	X int
 	Y int
+	ID string
+	Time int
 }

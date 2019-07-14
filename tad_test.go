@@ -2,6 +2,7 @@ package tad
 
 import (
 	"bytes"
+	"github.com/google/uuid"
 	"crypto/md5"
 	"encoding/binary"
 	"encoding/gob"
@@ -809,7 +810,7 @@ func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
 	tf.Close()
 }
 func TestDrawGif(t *testing.T) {
-	tf, err := os.Open(sample1)
+	tf, err := os.Open(sample2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -831,18 +832,9 @@ func TestDrawGif(t *testing.T) {
 			newFrame.Units[k].Finished = v.Finished
 			newFrame.Units[k].Pos.X = v.Pos.X
 			newFrame.Units[k].Pos.Y = v.Pos.Y
-			if newFrame.Units[k].CurFrame.Frame == 0 {
-				newFrame.Units[k].CurFrame = frameTime{
-					Frame: newFrame.Number,
-					Time: tval,
-				}
-			} else {
-				newFrame.Units[k].PrevFrame = newFrame.Units[k].CurFrame
-				newFrame.Units[k].CurFrame = frameTime{
-					Frame: newFrame.Number,
-					Time: tval,
-				}
-			}
+			newFrame.Units[k].Pos.Time = v.Pos.Time
+			newFrame.Units[k].Pos.ID = v.Pos.ID
+			newFrame.Units[k].ID = v.ID
 		}
 		frames = append(frames, newFrame)
 	}
@@ -866,11 +858,10 @@ func TestDrawGif(t *testing.T) {
 				Pos:     point{
 					X: int(tmp.XPos),
 					Y: int(tmp.YPos),
+					ID: uuid.New().String(),
+					Time: clock,
 				},
-				CurPos: point{
-					X: int(tmp.XPos),
-					Y: int(tmp.YPos),
-				},
+				ID: uuid.New().String(),
 			}
 			// check to see if its the first unit aka commander
 			if int(tmp.UnitID)%g.MaxUnits == 1 {
@@ -904,18 +895,14 @@ func TestDrawGif(t *testing.T) {
 			if tau, ok := unitmem[tmp.ShooterID]; ok && tau != nil {
 				tau.Pos.X = int(tmp.OriginX)
 				tau.Pos.Y = int(tmp.OriginY)
-				tau.PrevPos.X = tau.CurPos.X
-				tau.PrevPos.Y = tau.CurPos.Y
-				tau.CurPos.X = tau.Pos.X
-				tau.CurPos.Y = tau.Pos.Y
+				tau.Pos.Time = clock
+				tau.Pos.ID = uuid.New().String()
 			}
 			if tau, ok := unitmem[tmp.ShotID]; ok && tau != nil {
 				tau.Pos.X = int(tmp.DestX)
 				tau.Pos.Y = int(tmp.DestY)
-				tau.PrevPos.X = tau.CurPos.X
-				tau.PrevPos.Y = tau.CurPos.Y
-				tau.CurPos.X = tau.Pos.X
-				tau.CurPos.Y = tau.Pos.Y
+				tau.Pos.Time = clock
+				tau.Pos.ID = uuid.New().String()
 			}
 		}
 		if pr.Data[0] == 0x2c && len(pr.Data) >= 0x1a {
@@ -929,10 +916,8 @@ func TestDrawGif(t *testing.T) {
 				if x2cNetID-0xc00 == tau.NetID {
 					tau.Pos.X = int(x2cXPos) * 16
 					tau.Pos.Y = int(x2cYPos) * 16
-					tau.PrevPos.X = tau.CurPos.X
-					tau.PrevPos.Y = tau.CurPos.Y
-					tau.CurPos.X = tau.Pos.X
-					tau.CurPos.Y = tau.Pos.Y
+					tau.Pos.Time = clock
+					tau.Pos.ID = uuid.New().String()
 				}
 			}
 		}
@@ -944,14 +929,41 @@ func TestDrawGif(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// correct positions
-	for i := len(frames)-1; i >= 0; i-- {
-		for f, tau := range frames[i].Units {
-			if frames[i].Units[f].PrevFrame.Frame != 0 {
-				frames[i].Units[f].Pos = tau.getPos(frames[i].Time)
+	// update frames with calculated unit positions
+	nullPoint := point{
+		X: 0,
+		Y: 0,
+		ID: uuid.New().String(),
+		Time: 0,
+	}
+	for i := range frames {
+		for tauID, tau := range frames[i].Units {
+			toChange := []int{}
+			if tau.NextPos.ID == "" {
+				nextFrame := 0
+				for f := i; f < len(frames); f++ {
+					if unit, ok := frames[f].Units[tauID]; !ok || unit.ID != tau.ID {
+						break
+					}
+					if tau.Pos.ID != frames[f].Units[tauID].Pos.ID {
+						nextFrame = f
+						break
+					}
+					toChange = append(toChange, f)
+				}
+				if nextFrame == 0 {
+					tau.NextPos = nullPoint
+				} else {
+					for _, f := range toChange {
+						frames[f].Units[tauID].NextPos = frames[nextFrame].Units[tauID].Pos
+						frames[f].Units[tauID].updatePos(frames[f].Time)
+					}
+				}
 			}
 		}
 	}
+
+
 	out, err := os.Create(testGif)
 	if err != nil {
 		t.Error(err)

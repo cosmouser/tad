@@ -20,21 +20,44 @@ type numberedFrame struct {
 	Paletted *image.Paletted
 }
 
-func (t *taUnit) getPos(timeVal int) point {
-	// calculate vector between CurPos and PrevPos 
-	vector := point{
-		X: t.CurPos.X - t.PrevPos.X,
-		Y: t.CurPos.Y - t.PrevPos.Y,
+func (t *taUnit) updatePos(timeVal int) {
+	vectorX := float64(t.NextPos.X - t.Pos.X)
+	vectorY := float64(t.NextPos.Y - t.Pos.Y)
+	magnitude := math.Sqrt((vectorX*vectorX)+(vectorY*vectorY))
+	if magnitude == 0 {
+		// unit stays in the same place
+		return
 	}
-	// calculate distance between CurPos and PrevPos
-	distance := math.Sqrt(float64((vector.X*vector.X)+(vector.Y*vector.Y)))
-	duration := float64(t.CurFrame.Time - t.PrevFrame.Time)
-	length := (float64(timeVal)/duration)*distance
-	result := point{
-		X: t.PrevPos.X + (vector.X * int(length)),
-		Y: t.PrevPos.Y + (vector.Y * int(length)),
-	}
-	return result
+	unitVectorX := vectorX/magnitude
+	unitVectorY := vectorY/magnitude
+	timeDiff1 := float64(t.NextPos.Time - t.Pos.Time)
+	timeDiff2 := float64(timeVal - t.Pos.Time)
+	distanceModifier := timeDiff2/timeDiff1
+	newX := t.Pos.X + int(unitVectorX * magnitude * distanceModifier)
+	newY := t.Pos.Y + int(unitVectorY * magnitude * distanceModifier)
+	// log.WithFields(log.Fields{
+	// 	"timeDiffBig": timeDiff1,
+	// 	"timeDiffSmall": timeDiff2,
+	// 	"t.NextPos.Time": t.NextPos.Time,
+	// 	"t.Pos.Time": t.Pos.Time,
+	// 	"t.Pos.X": t.Pos.X,
+	// 	"t.Pos.Y": t.Pos.Y,
+	// 	"newX": newX,
+	// 	"newY": newY,
+	// 	"xDiff": xDiff,
+	// 	"yDiff": yDiff,
+	// }).Info()
+	// if math.IsNaN(xDiff) || math.IsNaN(yDiff) {
+	// 	log.WithFields(log.Fields{
+	// 		"unitVectorX": unitVectorX,
+	// 		"unitVectorY": unitVectorX,
+	// 		"magnitude": magnitude,
+	// 		"distanceModifier": distanceModifier,
+	// 	}).Warn("got NaN diff")
+	// }
+	t.Pos.X = newX
+	t.Pos.Y = newY
+	t.Pos.Time = timeVal
 }
 
 func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image.Rectangle) error {
