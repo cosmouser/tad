@@ -839,7 +839,9 @@ func TestDrawGif(t *testing.T) {
 	var clock, lastTime int
 	var lastToken string
 	var unitSpaces [10]uint16
+	var gp *game
 	err = loadDemo(tf, func(pr packetRec, g *game) {
+		gp = g
 		if pr.IdemToken != lastToken {
 			clock += int(pr.Time)
 			lastToken = pr.IdemToken
@@ -892,7 +894,7 @@ func TestDrawGif(t *testing.T) {
 			}
 			// 9 == factory is building
 			if tmp.State == 9 {
-				if tau, ok := unitmem[tmp.UnitID]; ok && tau != nil {
+				if tau, ok := unitmem[tmp.UnitID]; ok && tau != nil && tau.Class == buildingClass {
 					tau.Class = factoryClass
 				}
 			}
@@ -922,7 +924,7 @@ func TestDrawGif(t *testing.T) {
 				tau.Pos.Time = clock
 				tau.Pos.ID = uuid.New().String()
 			}
-			if tau, ok := unitmem[tmp.ShotID]; ok && tau != nil {
+			if tau, ok := unitmem[tmp.ShotID]; ok && tau != nil && tau.Class != buildingClass {
 				tau.Pos.X = int(tmp.DestX)
 				tau.Pos.Y = int(tmp.DestY)
 				tau.Pos.Time = clock
@@ -953,6 +955,10 @@ func TestDrawGif(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	colorMap := make(map[int]int)
+	for i := range gp.Players {
+		colorMap[int(gp.Players[i].Number)] = int(gp.Players[i].Color)+1
+	}
 	// update frames with calculated unit positions
 	nullPoint := point{
 		X: 0,
@@ -962,6 +968,7 @@ func TestDrawGif(t *testing.T) {
 	}
 	for i := range frames {
 		for tauID, tau := range frames[i].Units {
+			tau.Owner = colorMap[tau.Owner]
 			toChange := []int{}
 			if tau.NextPos.ID == "" {
 				nextFrame := 0
