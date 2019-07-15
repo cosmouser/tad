@@ -759,55 +759,56 @@ func GenScoreSeries(list []packetRec, pnameMap map[byte]string) (series map[stri
 	return
 }
 
-func getTeams(list []packetRec, pnameMap map[byte]string) (allies, enemies []string, err error) {
-	// Find out whom allies whom. If a player allies another player and that player allies them back
+func getTeams(list []packetRec, gp *game) (allies []int, err error) {
+	// If a player allies another player and that player allies them back
 	// they are allies. If a player unallies a player they are no longer allies.
-
-	// allyMap is going to use a string concatenated hash function.
-	// lesserid#greaterid
-	playerMap := make(map[uint32]byte)
-	allyMap := make(map[string]int) // 2 is allied
-	allyHashEncode := func(player1, player2 uint32) string {
-		var first, second string
-		if player1 > player2 {
-			first, second = strconv.Itoa(int(player2)), strconv.Itoa(int(player1))
-		} else {
-			first, second = strconv.Itoa(int(player1)), strconv.Itoa(int(player2))
-		}
-		return strings.Join([]string{first, second}, "#")
+	alliedTimer := make([]int, 10)
+	alliedTo := make([]bool, 10)
+	alliedBy := make([]bool, 10)
+	tdpidMap := make(map[int32]byte)
+	for _, p := range gp.Players {
+		tdpidMap[p.TDPID] = p.Number -1
 	}
+	var moveCounter int
+	var lastToken string
 	for _, pr := range list {
+		if pr.IdemToken != lastToken {
+			moveCounter += 1
+			lastToken = pr.IdemToken
+			for i := range alliedTo {
+				for j := range alliedBy {
+					if alliedTo[i] && alliedBy[j] {
+						alliedTimer[j]++
+					}
+				}
+			}
+		}
 		if pr.Data[0] == 0x23 {
 			tmp := packet0x23{}
-			err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &tmp)
+			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &tmp)
 			if err != nil {
-				return nil, nil, err
+				return
 			}
-			playerMap[tmp.Player] = pr.Sender
+			log.Printf("%+v", tmp)
 			if tmp.Status == 1 {
-				allyMap[allyHashEncode(tmp.Player, tmp.Allied)]++
+				if tdpidMap[tmp.Player] == 0 {
+					alliedTo[tdpidMap[tmp.Allied]] = true
+				} else {
+					alliedBy[tdpidMap[tmp.Player]] = true
+				}
 			} else {
-				allyMap[allyHashEncode(tmp.Player, tmp.Allied)]--
+				if tdpidMap[tmp.Player] == 0 {
+					alliedTo[tdpidMap[tmp.Allied]] = false
+				} else {
+					alliedBy[tdpidMap[tmp.Player]] = false
+				}
 			}
 		}
 	}
-	alliesBoolMap := make(map[byte]bool)
-	for k := range pnameMap {
-		alliesBoolMap[k] = false
-	}
-	for k, v := range playerMap {
-		for i, j := range playerMap {
-			if a, ok := allyMap[allyHashEncode(k, i)]; ok && a == 2 {
-				alliesBoolMap[v] = true
-				alliesBoolMap[j] = true
-			}
-		}
-	}
-	for k, v := range alliesBoolMap {
-		if v {
-			allies = append(allies, pnameMap[k])
-		} else {
-			enemies = append(enemies, pnameMap[k])
+	log.Printf("%+v", tdpidMap)
+	for i := range alliedTimer {
+		if float64(alliedTimer[i])/float64(gp.TotalMoves) > 0.80 {
+			allies = append(allies, i)
 		}
 	}
 	return

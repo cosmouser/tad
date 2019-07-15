@@ -86,7 +86,7 @@ type DemoPlayer struct {
 	Status string
 	IP     string
 	Cheats bool
-	orgpid int32
+	TDPID int32
 }
 type unitSyncRecord struct {
 	ID    uint32

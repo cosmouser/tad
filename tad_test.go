@@ -46,12 +46,11 @@ func TestGetTeams(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	pmap := GenPnames(gs.Players)
-	allies, enemies, err := getTeams(packets, pmap)
+	allies, err := getTeams(packets, gs)
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("allies: %v, enemies: %v", allies, enemies)
+	t.Logf("allies: %v", allies)
 	tf.Close()
 }
 func TestFinalScoresAndSeries(t *testing.T) {
@@ -260,6 +259,11 @@ func loadDemo(r io.ReadSeeker, testFunc func(packetRec, *game)) error {
 		if p[0xa2]&0x20 != 0 {
 			g.Players[i].Cheats = true
 		}
+		idn, err := createIdent(p)
+		if err != nil {
+			return err
+		}
+		g.Players[i].TDPID = idn.Player1
 	}
 	upd, err := parseUnitSyncData(r)
 	if err != nil {
@@ -492,7 +496,7 @@ func TestPlaybackMessages(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		players[i].orgpid = idn.Player1
+		players[i].TDPID = idn.Player1
 	}
 	_, err = parseUnitSyncData(tf)
 	if err != nil {
@@ -600,7 +604,7 @@ func TestReadHeaders(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		players[i].orgpid = idn.Player1
+		players[i].TDPID = idn.Player1
 	}
 	upd, err := parseUnitSyncData(tf)
 	if err != nil {

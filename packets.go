@@ -59,8 +59,8 @@ func (p *packet0x28) GetMarker() byte {
 // Player allies another player
 type packet0x23 struct {
 	Marker byte
-	Player uint32 // the player sending the ally packet
-	Allied uint32 // the player whom the sender is allying
+	Player int32 // the player sending the ally packet
+	Allied int32 // the player whom the sender is allying
 	Status uint8  // 1 == allied 0 == unallied
 	_      [4]byte
 }
