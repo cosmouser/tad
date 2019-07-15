@@ -99,6 +99,9 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 	for i := range outGif.Disposal {
 		outGif.Disposal[i] = gif.DisposalPrevious
 	}
+	for i := range outGif.Delay {
+		outGif.Delay[i] = 10
+	}
 	maxDim := math.Max(float64(mapPic.Bounds().Size().X), float64(mapPic.Bounds().Size().Y))
 	var scale float64
 	if rect.Size().X > rect.Size().Y {

@@ -30,6 +30,8 @@ var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
 var altSample1 = path.Join("sample", "match1fn.ted")
 var altSample2 = path.Join("sample", "match1t.ted")
 var darkcometpng = path.Join("sample", "dc.png")
+var corruptionted = path.Join("sample", "corruptionxl.ted")
+var corruptionpng = path.Join("sample", "corruptionxl.png")
 var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
@@ -1168,7 +1170,7 @@ func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
 	tf.Close()
 }
 func TestDrawGif(t *testing.T) {
-	tf, err := os.Open(sample2)
+	tf, err := os.Open(corruptionted)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1308,7 +1310,7 @@ func TestDrawGif(t *testing.T) {
 				}
 			}
 		}
-		if curTime := clock / 3000; curTime > lastTime {
+		if curTime := clock / 10000; curTime > lastTime {
 			addFrame(clock)
 			lastTime = curTime
 		}
@@ -1369,7 +1371,7 @@ func TestDrawGif(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bgf, err := os.Open(darkcometpng)
+	bgf, err := os.Open(corruptionpng)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1382,7 +1384,10 @@ func TestDrawGif(t *testing.T) {
 	}
 	bgf.Close()
 	// h:6144 w:7680
-	mapRect := image.Rect(0, 0, 6144, 7680)
+	// dark comet
+	// mapRect := image.Rect(0, 0, 6144, 7680)
+	// corruption xl 2
+	mapRect := image.Rect(0, 0, 5888, 11264)
 	err = drawGif(out, frames, mapPic, mapRect)
 	if err != nil {
 		t.Error(err)
