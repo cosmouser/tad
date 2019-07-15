@@ -775,13 +775,6 @@ func getTeams(list []packetRec, gp *game) (allies []int, err error) {
 		if pr.IdemToken != lastToken {
 			moveCounter += 1
 			lastToken = pr.IdemToken
-			for i := range alliedTo {
-				for j := range alliedBy {
-					if alliedTo[i] && alliedBy[j] {
-						alliedTimer[j]++
-					}
-				}
-			}
 		}
 		if pr.Data[0] == 0x23 {
 			tmp := packet0x23{}
@@ -789,7 +782,6 @@ func getTeams(list []packetRec, gp *game) (allies []int, err error) {
 			if err != nil {
 				return
 			}
-			log.Printf("%+v", tmp)
 			if tmp.Status == 1 {
 				if tdpidMap[tmp.Player] == 0 {
 					alliedTo[tdpidMap[tmp.Allied]] = true
@@ -804,8 +796,12 @@ func getTeams(list []packetRec, gp *game) (allies []int, err error) {
 				}
 			}
 		}
+		for i := range alliedTo {
+			if alliedTo[i] && alliedBy[i] {
+				alliedTimer[i]++
+			}
+		}
 	}
-	log.Printf("%+v", tdpidMap)
 	for i := range alliedTimer {
 		if float64(alliedTimer[i])/float64(gp.TotalMoves) > 0.80 {
 			allies = append(allies, i)
