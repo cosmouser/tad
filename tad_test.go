@@ -33,12 +33,59 @@ var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
 
-func TestIdentifyAlternate(t *testing.T) {
-	tf, err := os.Open(altSample2)
+func TestUnitCounts(t *testing.T) {
+	tf, err := os.Open(sample1)
 	if err != nil {
 		t.Error(err)
 	}
-	tf2, err := os.Open(altSample1)
+	unitcount := make([]map[uint16]int, 10)
+	unitmem := make(map[uint16]*taUnit)
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		if pr.Data[0] == 0x09 {
+			tmp := &packet0x09{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				t.Error(err)
+			}
+			unitmem[tmp.UnitID] = &taUnit{
+				Owner:    int(pr.Sender),
+				NetID:    tmp.NetID,
+				Finished: false,
+				ID: uuid.New().String(),
+			}
+		}
+		if pr.Data[0] == 0x12 {
+			tmp := &packet0x12{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				t.Error(err)
+			}
+			if tau, ok := unitmem[tmp.BuiltID]; ok && tau != nil && !unitmem[tmp.BuiltID].Finished {
+				unitmem[tmp.BuiltID].Finished = true
+				if unitcount[int(pr.Sender)-1] == nil {
+					unitcount[int(pr.Sender)-1] = make(map[uint16]int)
+				}
+				unitcount[int(pr.Sender)-1][unitmem[tmp.BuiltID].NetID]++
+			}
+		}
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range unitcount {
+		if unitcount[i] != nil {
+			for k, v := range unitcount[i] {
+				t.Logf("player %d made %d of unit %04x", i, v, k)
+			}
+		}
+	}
+	tf.Close()
+}
+
+func TestIdentifyAlternate(t *testing.T) {
+	tf, err := os.Open(altSample1)
+	if err != nil {
+		t.Error(err)
+	}
+	tf2, err := os.Open(altSample2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -84,6 +131,7 @@ func TestIdentifyAlternate(t *testing.T) {
 		t.Logf("game1 ought to be uploaded as a new game")
 	}
 	tf.Close()
+	tf2.Close()
 
 }
 

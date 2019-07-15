@@ -10,12 +10,6 @@ const (
 	recFromType
 	playerAddrType
 )
-const (
-	promoteFirst diffStatus = iota
-	ignoreFirst
-	createNewFromFirst
-)
-type diffStatus int
 // game holds the state of the replay parser
 type game struct {
 	MapName string
