@@ -48,6 +48,13 @@ func TestCheckCheatSettingDetection(t *testing.T) {
 	if cheats {
 		t.Error("got cheats enabled for sample7 and didnt expect cheats")
 	}
+	cheats, err = checkGameForCheats(sample4)
+	if err != nil {
+		t.Error(err)
+	}
+	if cheats {
+		t.Error("got cheats enabled for sample7 and didnt expect cheats")
+	}
 	cheats, err = checkGameForCheats(cheatsEnabledSample)
 	if err != nil {
 		t.Error(err)
@@ -182,6 +189,74 @@ func TestGetTeams(t *testing.T) {
 		t.Error(err)
 	}
 	t.Logf("allies: %v", allies)
+	tf.Close()
+}
+func TestResourceCheatDetection(t *testing.T) {
+	tf, err := os.Open(sample4)
+	if err != nil {
+		t.Error(err)
+	}
+	packets := []packetRec{}
+	gs := &game{}
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		gs = g
+		packets = append(packets, pr)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	pmap := GenPnames(gs.Players)
+	t.Logf("%+v", pmap)
+	_, err = getFinalScores(packets, pmap)
+	if err != nil && err.Error() != "detected foul play" {
+		t.Error("expected to find foul play, didn't detect it")
+		t.Fail()
+	}
+	if err == nil {
+		t.Error("expected to find foul play, didn't detect it")
+		t.Fail()
+	}
+	err = nil
+	tf.Close()
+	tf, err = os.Open(sample2)
+	if err != nil {
+		t.Error(err)
+	}
+	packets = []packetRec{}
+	gs = &game{}
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		gs = g
+		packets = append(packets, pr)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	pmap = GenPnames(gs.Players)
+	t.Logf("%+v", pmap)
+	_, err = getFinalScores(packets, pmap)
+	if err != nil {
+		t.Error(err)
+	}
+	tf.Close()
+	tf, err = os.Open(sample7)
+	if err != nil {
+		t.Error(err)
+	}
+	packets = []packetRec{}
+	gs = &game{}
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		gs = g
+		packets = append(packets, pr)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	pmap = GenPnames(gs.Players)
+	t.Logf("%+v", pmap)
+	_, err = getFinalScores(packets, pmap)
+	if err != nil {
+		t.Error(err)
+	}
 	tf.Close()
 }
 func TestFinalScoresAndSeries(t *testing.T) {

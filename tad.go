@@ -683,11 +683,20 @@ func getFinalScores(list []packetRec, pnameMap map[byte]string) (finalScores []F
 	for k := range pnameMap {
 		finalScores[smap[k]].Player = pnameMap[k]
 	}
+	foulPlay := &scoreError{}
 	for _, pr := range list {
 		if _, ok := pnameMap[pr.Sender]; ok && pr.Data[0] == 0x28 {
 			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &sp)
 			if err != nil {
 				return nil, err
+			}
+			if int(sp.Losses) < finalScores[smap[pr.Sender]].Losses {
+				foulPlay = &scoreError{player: pnameMap[pr.Sender], playerNumber: int(pr.Sender)}
+				log.Printf("foul play found from %v", pnameMap[pr.Sender])
+			}
+			if int(sp.Kills) < finalScores[smap[pr.Sender]].Kills {
+				foulPlay = &scoreError{player: pnameMap[pr.Sender], playerNumber: int(pr.Sender)}
+				log.Printf("foul play found from %v", pnameMap[pr.Sender])
 			}
 			finalScores[smap[pr.Sender]].Status = int(sp.Status)
 			finalScores[smap[pr.Sender]].Won = int(sp.ComKills)
@@ -699,6 +708,9 @@ func getFinalScores(list []packetRec, pnameMap map[byte]string) (finalScores []F
 			finalScores[smap[pr.Sender]].TotalM = float64(sp.TotalM)
 			finalScores[smap[pr.Sender]].ExcessM = float64(sp.ExcessM)
 		}
+	}
+	if foulPlay.playerNumber != 0 {
+		err = foulPlay
 	}
 	return
 }

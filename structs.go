@@ -162,3 +162,11 @@ type SPLite struct {
 	ExcessM      float64
 	Milliseconds int
 }
+type scoreError struct {
+	player string
+	playerNumber int
+}
+func (s *scoreError) Error() string {
+	return "detected foul play"
+}
+
