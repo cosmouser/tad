@@ -32,7 +32,7 @@ var darkcometpng = path.Join("sample", "dc.png")
 var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
-func TestFinalScores(t *testing.T) {
+func TestFinalScoresAndSeries(t *testing.T) {
 	tf, err := os.Open(sample1)
 	if err != nil {
 		t.Error(err)
@@ -52,6 +52,10 @@ func TestFinalScores(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log(fs)
+	_, err := GenScoreSeries(packets, pmap)
+	if err != nil {
+		t.Error(err)
+	}
 	tf.Close()
 }
 

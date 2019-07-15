@@ -10,18 +10,19 @@ const (
 	recFromType
 	playerAddrType
 )
+
 // game holds the state of the replay parser
 type game struct {
-	MapName string
-	Players []DemoPlayer
-	LobbyChat []string
-	Version string
-	RecFrom string
-	RecDate string
-	MaxUnits int
-	TimeToDie [10]int
+	MapName    string
+	Players    []DemoPlayer
+	LobbyChat  []string
+	Version    string
+	RecFrom    string
+	RecDate    string
+	MaxUnits   int
+	TimeToDie  [10]int
 	TotalMoves int
-	Unitsum string
+	Unitsum    string
 }
 
 type summary struct {
@@ -49,10 +50,10 @@ type playerBlock struct {
 }
 
 type packetRec struct {
-	Time   uint16 // time since last packet in milliseconds
-	Sender byte
-	IdemToken   string // idempotency token, arbitrary uuid
-	Data   []byte
+	Time      uint16 // time since last packet in milliseconds
+	Sender    byte
+	IdemToken string // idempotency token, arbitrary uuid
+	Data      []byte
 }
 
 type savePlayers struct {
@@ -83,7 +84,7 @@ type DemoPlayer struct {
 	Number byte
 	Name   string
 	Status string
-	IP string
+	IP     string
 	Cheats bool
 	orgpid int32
 }
@@ -115,22 +116,22 @@ type saveHealth struct {
 }
 type playbackFrame struct {
 	Number int
-	Time int
-	Units map[uint16]*taUnit
+	Time   int
+	Units  map[uint16]*taUnit
 }
 type taUnit struct {
-	Owner int
-	NetID uint16
+	Owner    int
+	NetID    uint16
 	Finished bool
-	Pos point
-	NextPos point
-	Class unitClass
-	ID string
+	Pos      point
+	NextPos  point
+	Class    unitClass
+	ID       string
 }
 type point struct {
-	X int
-	Y int
-	ID string
+	X    int
+	Y    int
+	ID   string
 	Time int
 }
 
@@ -146,4 +147,18 @@ type FinalScore struct {
 	ExcessE float64 `json:"excessEnergy"`
 	TotalM  float64 `json:"metalProduced"`
 	ExcessM float64 `json:"excessMetal"`
+}
+
+// SPLite is a smaller version of a score packet. It only contains m/e per second.
+// It also has a time value for easy plotting.
+type SPLite struct {
+	Kills        int
+	Losses       int
+	Metal        float64
+	Energy       float64
+	TotalE       float64
+	TotalM       float64
+	ExcessE      float64
+	ExcessM      float64
+	Milliseconds int
 }

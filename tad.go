@@ -3,6 +3,7 @@ package tad
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
 	"errors"
 	"fmt"
 	"io"
@@ -697,6 +698,62 @@ func getFinalScores(list []packetRec, pnameMap map[byte]string) (finalScores []F
 			finalScores[smap[pr.Sender]].ExcessE = float64(sp.ExcessE)
 			finalScores[smap[pr.Sender]].TotalM = float64(sp.TotalM)
 			finalScores[smap[pr.Sender]].ExcessM = float64(sp.ExcessM)
+		}
+	}
+	return
+}
+
+// GenScoreSeries extracts the series of 0x28 packets from the game
+func GenScoreSeries(list []packetRec, pnameMap map[byte]string) (series map[string][]SPLite, err error) {
+	series = make(map[string][]SPLite)
+	seriesFull := make(map[string][]packet0x28)
+	var (
+		scorePacket packet0x28
+		litePacket  SPLite
+		ediff       float64
+		mdiff       float64
+		tdiff       float64
+	)
+	var clock int
+	var lastToken string
+	for _, pr := range list {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x28 {
+			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &scorePacket)
+			if err != nil {
+				return nil, err
+			}
+			if len(series[pnameMap[pr.Sender]]) == 0 {
+				series[pnameMap[pr.Sender]] = append(series[pnameMap[pr.Sender]], SPLite{Milliseconds: clock})
+			}
+			if len(seriesFull[pnameMap[pr.Sender]]) == 0 {
+				seriesFull[pnameMap[pr.Sender]] = append(seriesFull[pnameMap[pr.Sender]], packet0x28{})
+			}
+			ediff = float64(scorePacket.TotalE - seriesFull[pnameMap[pr.Sender]][len(seriesFull[pnameMap[pr.Sender]])-1].TotalE)
+			mdiff = float64(scorePacket.TotalM - seriesFull[pnameMap[pr.Sender]][len(seriesFull[pnameMap[pr.Sender]])-1].TotalM)
+			tdiff = float64(clock - series[pnameMap[pr.Sender]][len(series[pnameMap[pr.Sender]])-1].Milliseconds)
+			litePacket.Energy = (ediff / tdiff) * 1000
+			litePacket.Metal = (mdiff / tdiff) * 1000
+			litePacket.Kills = int(scorePacket.Kills)
+			litePacket.Losses = int(scorePacket.Losses)
+			litePacket.TotalE = float64(scorePacket.TotalE)
+			litePacket.TotalM = float64(scorePacket.TotalM)
+			litePacket.ExcessE = float64(scorePacket.ExcessE)
+			litePacket.ExcessM = float64(scorePacket.ExcessM)
+			if math.IsNaN(litePacket.Energy) || math.IsInf(litePacket.Energy, 1) {
+				litePacket.Energy = 1
+			}
+			if math.IsNaN(litePacket.Metal) || math.IsInf(litePacket.Metal, 1) {
+				litePacket.Metal = 1
+			}
+			litePacket.Milliseconds = clock
+			if litePacket.Metal > 1.0 || litePacket.Energy > 1.0 {
+				series[pnameMap[pr.Sender]] = append(series[pnameMap[pr.Sender]], litePacket)
+			}
+			seriesFull[pnameMap[pr.Sender]] = append(seriesFull[pnameMap[pr.Sender]], scorePacket)
 		}
 	}
 	return
