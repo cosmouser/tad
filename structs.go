@@ -133,3 +133,17 @@ type point struct {
 	ID string
 	Time int
 }
+
+// FinalScore holds score info for gamedata
+type FinalScore struct {
+	Status  int     `json:"status"`
+	Won     int     `json:"won"`
+	Lost    int     `json:"lost"`
+	Player  string  `json:"player"`
+	Kills   int     `json:"kills"`
+	Losses  int     `json:"losses"`
+	TotalE  float64 `json:"energyProduced"`
+	ExcessE float64 `json:"excessEnergy"`
+	TotalM  float64 `json:"metalProduced"`
+	ExcessM float64 `json:"excessMetal"`
+}

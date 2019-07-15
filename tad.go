@@ -662,3 +662,42 @@ func diffDataSeries(s1 []interface{}, s2 []interface{}) float64 {
 	shared := lcs.New(s1, s2)
 	return float64(shared.Length())/float64(len(s1))
 }
+// GenPnames creates a non-alphabetical map of packet from to player name
+func GenPnames(players []DemoPlayer) map[byte]string {
+	pnames := make(map[byte]string)
+	for i := range players {
+		pnames[byte(players[i].Number)] = players[i].Name
+	}
+	return pnames
+}
+func getFinalScores(list []packetRec, pnameMap map[byte]string) (finalScores []FinalScore, err error) {
+	var sp packet0x28
+	var c int
+	smap := make(map[byte]int)
+	for k := range pnameMap {
+		smap[k] = c
+		c++
+	}
+	finalScores = make([]FinalScore, c)
+	for k := range pnameMap {
+		finalScores[smap[k]].Player = pnameMap[k]
+	}
+	for _, pr := range list {
+		if _, ok := pnameMap[pr.Sender]; ok && pr.Data[0] == 0x28 {
+			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &sp)
+			if err != nil {
+				return nil, err
+			}
+			finalScores[smap[pr.Sender]].Status = int(sp.Status)
+			finalScores[smap[pr.Sender]].Won = int(sp.ComKills)
+			finalScores[smap[pr.Sender]].Lost = int(sp.ComLosses)
+			finalScores[smap[pr.Sender]].Kills = int(sp.Kills)
+			finalScores[smap[pr.Sender]].Losses = int(sp.Losses)
+			finalScores[smap[pr.Sender]].TotalE = float64(sp.TotalE)
+			finalScores[smap[pr.Sender]].ExcessE = float64(sp.ExcessE)
+			finalScores[smap[pr.Sender]].TotalM = float64(sp.TotalM)
+			finalScores[smap[pr.Sender]].ExcessM = float64(sp.ExcessM)
+		}
+	}
+	return
+}
