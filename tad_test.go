@@ -26,12 +26,143 @@ var sample4 = path.Join("sample", "cheats.ted")
 var sample5 = path.Join("sample", "dcfezkazik.ted")
 var sample6 = path.Join("sample", "dcracefn0608.ted")
 var sample7 = path.Join("sample", "dc3.ted")
+var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
 var altSample1 = path.Join("sample", "match1fn.ted")
 var altSample2 = path.Join("sample", "match1t.ted")
 var darkcometpng = path.Join("sample", "dc.png")
 var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
+func TestCheckCheatSettingDetection(t *testing.T) {
+	cheats, err := checkGameForCheats(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	if cheats {
+		t.Error("got cheats enabled for sample1 and didnt expect cheats")
+	}
+	cheats, err = checkGameForCheats(sample7)
+	if err != nil {
+		t.Error(err)
+	}
+	if cheats {
+		t.Error("got cheats enabled for sample7 and didnt expect cheats")
+	}
+	cheats, err = checkGameForCheats(cheatsEnabledSample)
+	if err != nil {
+		t.Error(err)
+	}
+	if !cheats {
+		t.Error("enabled cheats were not detected, expected cheats enabled")
+	}
+}
+func checkGameForCheats(path string) (bool, error) {
+	r, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer r.Close()
+	g := game{}
+	sum, err := parseSummary(r)
+	if err != nil {
+		return false, err
+	}
+	g.MapName = string(bytes.Split(sum.MapName[:], []byte{0x0})[0])
+	g.MaxUnits = int(sum.MaxUnits)
+	g.Players = make([]DemoPlayer, int(sum.NumPlayers))
+	eh, err := loadSection(r)
+	if err != nil {
+		return false, err
+	}
+	numSectors := int(eh[0])
+	var playerAddrNum int
+	for i := 0; i < numSectors; i++ {
+		sec, err := loadSection(r)
+		if err != nil {
+			return false, err
+		}
+		extra, err := parseExtra(sec)
+		if err != nil {
+			return false, err
+		}
+		switch extra.sectorType {
+		case commentsType:
+			log.WithFields(log.Fields{
+				"content": string(extra.data),
+			}).Info("comment(s) detected")
+		case lobbyChatType:
+			lobbyChat, err := parseLobbyChat(extra)
+			if err != nil {
+				return false, err
+			}
+			g.LobbyChat = lobbyChat
+		case versionNumberType:
+			g.Version = string(extra.data)
+		case dateStringType:
+			g.RecDate = string(extra.data)
+		case recFromType:
+			g.RecFrom = string(extra.data)
+		case playerAddrType:
+			addr, err := parseAddressBlock(extra)
+			if err != nil {
+				return false, err
+			}
+			g.Players[playerAddrNum].IP = addr
+			playerAddrNum++
+		}
+	}
+	for i := 0; i < len(g.Players); i++ {
+		player, err := parsePlayer(r)
+		if err != nil {
+			return false, err
+		}
+		g.Players[i].Color = player.Color
+		g.Players[i].Side = player.Side
+		g.Players[i].Number = player.Number
+		g.Players[i].Name = string(bytes.TrimRight(player.Name[:], "\x00"))
+	}
+	for i := 0; i < len(g.Players); i++ {
+		sm, err := parseStatMsg(r)
+		if err != nil {
+			return false, err
+		}
+		p, err := createPacket(sm.Data)
+		if err != nil {
+			return false, err
+		}
+		g.Players[i].Status = string(p)
+		g.Players[i].Color = p[0x9e]
+		if p[0xa4]&0x20 != 0 {
+			g.Players[i].Cheats = true
+			return true, nil
+		}
+		idn, err := createIdent(p)
+		if err != nil {
+			return false, err
+		}
+		g.Players[i].TDPID = idn.Player1
+	}
+	return false, nil
+}
+func TestGetLengthInMinutes(t *testing.T) {
+	tf, err := os.Open(sample2)
+	if err != nil {
+		t.Error(err)
+	}
+	var clock int
+	var lastToken string
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("game was %d minutes long", clock / (1000 * 60))
+	tf.Close()
+}
 func TestGetTeams(t *testing.T) {
 	tf, err := os.Open(sample7)
 	if err != nil {
