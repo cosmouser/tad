@@ -56,6 +56,29 @@ func (p *packet0x28) GetMarker() byte {
 	return p.Marker
 }
 
+// Player allies another player
+type packet0x23 struct {
+	Marker byte
+	Player uint32 // the player sending the ally packet
+	Allied uint32 // the player whom the sender is allying
+	Status uint8  // 1 == allied 0 == unallied
+	_      [4]byte
+}
+func (p *packet0x23) GetMarker() byte {
+	return p.Marker
+}
+func (p *packet0x23) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
+	if p.Status == 1 {
+		return fmt.Sprintf("%02x: player %08x allied player %08x",
+		p.Marker,
+		p.Player,
+		p.Allied)
+	}
+	return fmt.Sprintf("%02x: player %08x un-allied player %08x",
+		p.Marker,
+		p.Player,
+		p.Allied)
+}
 // Starting to build unit
 type packet0x09 struct {
 	Marker   byte

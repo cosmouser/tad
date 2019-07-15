@@ -758,3 +758,58 @@ func GenScoreSeries(list []packetRec, pnameMap map[byte]string) (series map[stri
 	}
 	return
 }
+
+func getTeams(list []packetRec, pnameMap map[byte]string) (allies, enemies []string, err error) {
+	// Find out whom allies whom. If a player allies another player and that player allies them back
+	// they are allies. If a player unallies a player they are no longer allies.
+
+	// allyMap is going to use a string concatenated hash function.
+	// lesserid#greaterid
+	playerMap := make(map[uint32]byte)
+	allyMap := make(map[string]int) // 2 is allied
+	allyHashEncode := func(player1, player2 uint32) string {
+		var first, second string
+		if player1 > player2 {
+			first, second = strconv.Itoa(int(player2)), strconv.Itoa(int(player1))
+		} else {
+			first, second = strconv.Itoa(int(player1)), strconv.Itoa(int(player2))
+		}
+		return strings.Join([]string{first, second}, "#")
+	}
+	for _, pr := range list {
+		if pr.Data[0] == 0x23 {
+			tmp := packet0x23{}
+			err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &tmp)
+			if err != nil {
+				return nil, nil, err
+			}
+			playerMap[tmp.Player] = pr.Sender
+			if tmp.Status == 1 {
+				allyMap[allyHashEncode(tmp.Player, tmp.Allied)]++
+			} else {
+				allyMap[allyHashEncode(tmp.Player, tmp.Allied)]--
+			}
+		}
+	}
+	alliesBoolMap := make(map[byte]bool)
+	for k := range pnameMap {
+		alliesBoolMap[k] = false
+	}
+	for k, v := range playerMap {
+		for i, j := range playerMap {
+			if a, ok := allyMap[allyHashEncode(k, i)]; ok && a == 2 {
+				alliesBoolMap[v] = true
+				alliesBoolMap[j] = true
+			}
+		}
+	}
+	for k, v := range alliesBoolMap {
+		if v {
+			allies = append(allies, pnameMap[k])
+		} else {
+			enemies = append(enemies, pnameMap[k])
+		}
+	}
+	return
+}
+

@@ -32,6 +32,28 @@ var darkcometpng = path.Join("sample", "dc.png")
 var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
+func TestGetTeams(t *testing.T) {
+	tf, err := os.Open(sample7)
+	if err != nil {
+		t.Error(err)
+	}
+	packets := []packetRec{}
+	gs := &game{}
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		gs = g
+		packets = append(packets, pr)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	pmap := GenPnames(gs.Players)
+	allies, enemies, err := getTeams(packets, pmap)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("allies: %v, enemies: %v", allies, enemies)
+	tf.Close()
+}
 func TestFinalScoresAndSeries(t *testing.T) {
 	tf, err := os.Open(sample1)
 	if err != nil {
@@ -52,7 +74,7 @@ func TestFinalScoresAndSeries(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log(fs)
-	_, err := GenScoreSeries(packets, pmap)
+	_, err = GenScoreSeries(packets, pmap)
 	if err != nil {
 		t.Error(err)
 	}
