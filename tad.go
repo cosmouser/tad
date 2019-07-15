@@ -617,3 +617,21 @@ func splitPacket(data []byte) (out []byte) {
 	}
 	return
 }
+func appendDiffData(ds []interface{}, pr packetRec) error {
+	switch pr.Data[0] {
+	case 0xd:
+		tmp := &packet0x0d{}
+		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+			return err
+		}
+	case 0x11:
+	case 0xb:
+	case 0x5:
+	case 0x9:
+	case 0xfc:
+	}
+	return nil
+}
+func diffDataSeries(s1 []interface{}, s2 []interface{}) (result diffStatus, err error) {
+	return
+}

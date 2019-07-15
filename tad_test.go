@@ -26,10 +26,71 @@ var sample4 = path.Join("sample", "cheats.ted")
 var sample5 = path.Join("sample", "dcfezkazik.ted")
 var sample6 = path.Join("sample", "dcracefn0608.ted")
 var sample7 = path.Join("sample", "dc3.ted")
+var altSample1 = path.Join("sample", "match1fn.ted")
+var altSample2 = path.Join("sample", "match1t.ted")
 var darkcometpng = path.Join("sample", "dc.png")
 var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
+
+func TestIdentifyAlternate(t *testing.T) {
+	tf, err := os.Open(altSample1)
+	if err != nil {
+		t.Error(err)
+	}
+	tf2, err := os.Open(altSample2)
+	if err != nil {
+		t.Error(err)
+	}
+	diffSeries1 := []interface{}{}
+	diffSeries2 := []interface{}{}
+	var lastToken string
+	var clock int
+	var threeMinutes = 60*1000*3
+	err = loadDemo(tf, func(pr packetRec, g *game) {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if clock < threeMinutes {
+			err = appendDiffData(diffSeries1, pr)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+		return
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	// reset timer
+	lastToken = ""
+	clock = 0
+	err = loadDemo(tf2, func(pr packetRec, g *game) {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if clock < threeMinutes {
+			err = appendDiffData(diffSeries2, pr)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+		return
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	result, err := diffDataSeries(diffSeries1, diffSeries2)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("diffDataSeries result was %v", result)
+	tf.Close()
+
+}
+
 
 // loadDemo is a function for conveniently opening up demo files and playing
 // through their packets.

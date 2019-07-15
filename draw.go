@@ -29,19 +29,6 @@ const (
 	airClass
 )
 
-type maskRect struct {
-	min, max image.Point
-}
-func (mr *maskRect) ColorModel() color.Model {
-	return color.AlphaModel
-}
-func (mr *maskRect) Bounds() image.Rectangle {
-	return image.Rect(mr.min.X, mr.min.Y, mr.max.X, mr.max.Y)
-}
-func (mr *maskRect) At(x, y int) color.Color {
-	return color.Alpha{255}
-}
-
 func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
 	dc.SetColor(tnt.TAPalette[0x55])
 	if t == nil || t.Finished == false {
@@ -167,7 +154,6 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 					imgItem := dc.Image()
 					palettedImage := image.NewPaletted(imgItem.Bounds(), gifPalette)
 					draw.Draw(palettedImage, palettedImage.Rect, imgItem, imgItem.Bounds().Min, draw.Over)
-					log.Printf("frame %d of %d drawn", incomingFrame.Number, len(frames))
 					palettedStream <- numberedFrame{
 						Number:   incomingFrame.Number,
 						Paletted: palettedImage,
@@ -224,7 +210,7 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 		}
 	}
 
-	log.Printf("drawing frames took %v", time.Since(ts1))
+	log.Printf("drawing %d frames took %v at %f fps", len(frames), time.Since(ts1), float64(len(frames))/time.Since(ts1).Seconds())
 	gif.EncodeAll(w, &outGif)
 	log.WithFields(log.Fields{
 		"numFrames": len(frames),
