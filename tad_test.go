@@ -34,26 +34,22 @@ var testGif = path.Join("tmp", "test.gif")
 const minuteInMilliseconds = 60000
 
 func TestIdentifyAlternate(t *testing.T) {
-	tf, err := os.Open(altSample1)
+	tf, err := os.Open(altSample2)
 	if err != nil {
 		t.Error(err)
 	}
-	tf2, err := os.Open(altSample2)
+	tf2, err := os.Open(altSample1)
 	if err != nil {
 		t.Error(err)
 	}
 	diffSeries1 := []interface{}{}
 	diffSeries2 := []interface{}{}
-	var lastToken string
-	var clock int
-	var threeMinutes = 60*1000*3
+	game1 := &game{}
+	game2 := &game{}
 	err = loadDemo(tf, func(pr packetRec, g *game) {
-		if pr.IdemToken != lastToken {
-			clock += int(pr.Time)
-			lastToken = pr.IdemToken
-		}
-		if clock < threeMinutes {
-			err = appendDiffData(diffSeries1, pr)
+		game1 = g
+		if len(diffSeries1) < 100 {
+			err = appendDiffData(&diffSeries1, pr)
 			if err != nil {
 				t.Error(err)
 			}
@@ -63,16 +59,10 @@ func TestIdentifyAlternate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// reset timer
-	lastToken = ""
-	clock = 0
 	err = loadDemo(tf2, func(pr packetRec, g *game) {
-		if pr.IdemToken != lastToken {
-			clock += int(pr.Time)
-			lastToken = pr.IdemToken
-		}
-		if clock < threeMinutes {
-			err = appendDiffData(diffSeries2, pr)
+		game2 = g
+		if len(diffSeries2) < 100 {
+			err = appendDiffData(&diffSeries2, pr)
 			if err != nil {
 				t.Error(err)
 			}
@@ -82,11 +72,17 @@ func TestIdentifyAlternate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	result, err := diffDataSeries(diffSeries1, diffSeries2)
-	if err != nil {
-		t.Error(err)
+	matchPercent := diffDataSeries(diffSeries1, diffSeries2)
+	t.Log(matchPercent)
+	if matchPercent > 0.89 {
+		if game1.TotalMoves > game2.TotalMoves {
+			t.Logf("game1 ought to be promoted over game2")
+		} else {
+			t.Logf("game1 ought not to be promoted")
+		}
+	} else {
+		t.Logf("game1 ought to be uploaded as a new game")
 	}
-	t.Logf("diffDataSeries result was %v", result)
 	tf.Close()
 
 }

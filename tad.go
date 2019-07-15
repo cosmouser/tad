@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
+	lcs "github.com/yudai/golcs"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
@@ -617,21 +617,48 @@ func splitPacket(data []byte) (out []byte) {
 	}
 	return
 }
-func appendDiffData(ds []interface{}, pr packetRec) error {
+func appendDiffData(ds *[]interface{}, pr packetRec) error {
 	switch pr.Data[0] {
 	case 0xd:
 		tmp := &packet0x0d{}
 		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
 			return err
 		}
+		*ds = append(*ds, tmp.OriginX, tmp.OriginZ, tmp.OriginY, tmp.DestX, tmp.DestZ, tmp.DestY)
 	case 0x11:
+		tmp := &packet0x11{}
+		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+			return err
+		}
+		*ds = append(*ds, tmp.State)
 	case 0xb:
+		tmp := &packet0x0b{}
+		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+			return err
+		}
+		*ds = append(*ds, tmp.Damage)
 	case 0x5:
+		tmp := &packet0x05{}
+		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+			return err
+		}
+		*ds = append(*ds, string(tmp.Message[:]))
 	case 0x9:
+		tmp := &packet0x09{}
+		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+			return err
+		}
+		*ds = append(*ds, tmp.NetID, tmp.XPos, tmp.ZPos, tmp.YPos)
 	case 0xfc:
+		tmp := &packet0xfc{}
+		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+			return err
+		}
+		*ds = append(*ds, tmp.XPos, tmp.YPos)
 	}
 	return nil
 }
-func diffDataSeries(s1 []interface{}, s2 []interface{}) (result diffStatus, err error) {
-	return
+func diffDataSeries(s1 []interface{}, s2 []interface{}) float64 {
+	shared := lcs.New(s1, s2)
+	return float64(shared.Length())/float64(len(s1))
 }
