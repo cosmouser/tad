@@ -363,7 +363,7 @@ func TestIdentifyAlternate(t *testing.T) {
 		t.Error(err)
 	}
 	tf2.Close()
-	if game1.GetFingerprint() != game2.GetFingerprint() || game1 == "invalid" {
+	if game1.GetFingerprint() != game2.GetFingerprint() || game1.GetFingerprint() == "invalid" {
 		t.Error("fingerprints don't match or are invalid")
 	}
 }
@@ -560,6 +560,7 @@ func TestAnalyzeDemo(t *testing.T) {
 	for pr := range prs {
 		counter[pr.Data[0]]++
 	}
+	t.Logf("%+v", gp)
 	tf.Close()
 }
 func TestLoadDemo(t *testing.T) {

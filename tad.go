@@ -2,8 +2,11 @@ package tad
 
 import (
 	"bytes"
+	"context"
+	"crypto/md5"
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -96,14 +99,14 @@ func parseAndCopyStatMsg(r io.Reader, dp *DemoPlayer) error {
 func loadExtraSectors(r io.Reader, gp *Game) error {
 	eh, err := loadSection(r)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	numSectors := int(eh[0])
 	var playerAddrNum int
 	for i := 0; i < numSectors; i++ {
 		extra, err := loadAndParseExtra(r)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 		switch extra.sectorType {
 		case commentsType:
@@ -262,7 +265,109 @@ func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error
 	err = nil
 	return
 }
+func getGameLengthAndTTD(r io.Reader, gp *Game) error {
+	var (
+		totalMoves        int
+		totalMilliseconds int
+		lastToken         string
+		err               error
+	)
+	for err != io.EOF {
+		pr := PacketRec{}
+		pr, err = loadMove(r)
+		if pr.IdemToken != lastToken {
+			totalMilliseconds += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Sender > 10 || pr.Sender < 1 {
+			if err != io.EOF {
+				log.WithFields(log.Fields{
+					"sender":    pr.Sender,
+					"data":      pr.Data,
+					"loopCount": totalMoves,
+				}).Warn("move from odd sender")
+			}
+		} else {
+			gp.TimeToDie[int(pr.Sender)-1] = totalMoves
+			gp.Players[int(pr.Sender)-1].TimeToDie = totalMilliseconds
+			totalMoves++
+		}
+	}
+	gp.TotalMoves = totalMoves
+	gp.Milliseconds = totalMilliseconds
+	return nil
+}
 
+func prGenerator(ctx context.Context, r io.Reader, totalMoves int, maxUnits int) <-chan PacketRec {
+	var (
+		lastDronePack   [10]uint32
+		posSyncComplete [10]uint32
+		recentPos       [10]bool
+		lastSerial      [10]uint32
+		masterHealth    saveHealth
+		err             error
+	)
+	masterHealth.MaxUnits = int32(maxUnits)
+	loopCount := 1
+	packetRecStream := make(chan PacketRec)
+	go func() {
+		defer close(packetRecStream)
+		for err != io.EOF && loopCount < totalMoves {
+			pr := PacketRec{}
+			pr, err = loadMove(r)
+			if err != nil && err != io.EOF {
+				log.WithFields(log.Fields{
+					"error": err,
+				}).Error("prGenerator failed to load move")
+				break
+			}
+			cpdb := make([]byte, len(pr.Data))
+			for i := range pr.Data {
+				cpdb[i] = pr.Data[i]
+			}
+			if recentPos[int(pr.Sender)-1] {
+				recentPos[int(pr.Sender)-1] = false
+				cpdb = unsmartpak(pr, &masterHealth, lastDronePack, false)
+				posSyncComplete[int(pr.Sender)-1] = lastDronePack[int(pr.Sender)-1] + uint32(maxUnits)
+			}
+			if lastDronePack[int(pr.Sender)-1] < posSyncComplete[int(pr.Sender)-1] {
+				cpdb = unsmartpak(pr, &masterHealth, lastDronePack, false)
+			} else {
+				cpdb = unsmartpak(pr, &masterHealth, lastDronePack, true)
+			}
+			cpdb = append([]byte{cpdb[0], 'c', 'c', 0xff, 0xff, 0xff, 0xff}, cpdb[1:]...)
+			if len(cpdb) > 7 {
+				cpdb2 := append([]byte{}, cpdb[7:]...)
+				for {
+					tmp := splitPacket2(&cpdb2, false)
+					msg := PacketRec{
+						Time:      pr.Time,
+						Sender:    pr.Sender,
+						IdemToken: pr.IdemToken,
+						Data:      tmp,
+					}
+					select {
+					case <-ctx.Done():
+						return
+					case packetRecStream <- msg:
+					}
+
+					switch tmp[0] {
+					case 0x2c:
+						ip := binary.LittleEndian.Uint32(tmp[3:])
+						lastSerial[int(pr.Sender)-1] = ip
+					}
+					if len(cpdb2) == 0 {
+						break
+					}
+
+				}
+			}
+			loopCount++
+		}
+	}()
+	return packetRecStream
+}
 func loadMove(r io.Reader) (pr PacketRec, err error) {
 	dat, err := loadSection(r)
 	if err != nil {

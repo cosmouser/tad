@@ -13,16 +13,17 @@ const (
 
 // Game holds the state of the replay parser
 type Game struct {
-	MapName    string
-	Players    []DemoPlayer
-	LobbyChat  []string
-	Version    string
-	RecFrom    string
-	RecDate    string
-	MaxUnits   int
-	TimeToDie  [10]int
-	TotalMoves int
-	Unitsum    string
+	MapName      string
+	Players      []DemoPlayer
+	LobbyChat    []string
+	Version      string
+	RecFrom      string
+	RecDate      string
+	MaxUnits     int
+	TimeToDie    [10]int
+	TotalMoves   int
+	Milliseconds int
+	Unitsum      string
 }
 
 type summary struct {
@@ -80,14 +81,15 @@ type identRec struct {
 
 // DemoPlayer is the in memory representation of a player
 type DemoPlayer struct {
-	Color  byte
-	Side   byte
-	Number byte
-	Name   string
-	Status string
-	IP     string
-	Cheats bool
-	TDPID  int32
+	Color     byte
+	Side      byte
+	Number    byte
+	Name      string
+	Status    string
+	IP        string
+	TimeToDie int // milliseconds
+	Cheats    bool
+	TDPID     int32
 }
 type unitSyncRecord struct {
 	ID    uint32
