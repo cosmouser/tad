@@ -162,7 +162,7 @@ func parseUnitSyncData(r io.Reader) (units map[uint32]*unitSyncRecord, err error
 	return
 }
 
-func loadMove(r io.Reader) (pr packetRec, err error) {
+func loadMove(r io.Reader) (pr PacketRec, err error) {
 	dat, err := loadSection(r)
 	if err != nil {
 		return pr, err
@@ -303,7 +303,7 @@ func getGameOffset(rs io.ReadSeeker) int64 {
 	return n
 }
 
-func deserialize(move packetRec) (subs [][]byte, err error) {
+func deserialize(move PacketRec) (subs [][]byte, err error) {
 	if len(move.Data) < 1 {
 		return
 	}
@@ -420,7 +420,7 @@ func loadTAPacket(pdata []byte) (taPacket, error) {
 	}
 	return tmp, nil
 }
-func unsmartpak(pr packetRec, save *saveHealth, last2cs [10]uint32, incnon2c bool) []byte {
+func unsmartpak(pr PacketRec, save *saveHealth, last2cs [10]uint32, incnon2c bool) []byte {
 	var packnum uint32
 	var ut []byte
 	var packout bytes.Buffer
@@ -621,7 +621,7 @@ func splitPacket(data []byte) (out []byte) {
 	}
 	return
 }
-func appendDiffData(ds *[]interface{}, pr packetRec) error {
+func appendDiffData(ds *[]interface{}, pr PacketRec) error {
 	switch pr.Data[0] {
 	case 0xd:
 		tmp := &packet0x0d{}
@@ -696,7 +696,7 @@ func GenPnames(players []DemoPlayer) map[byte]string {
 	}
 	return pnames
 }
-func getFinalScores(list []packetRec, pnameMap map[byte]string) (finalScores []FinalScore, err error) {
+func getFinalScores(list []PacketRec, pnameMap map[byte]string) (finalScores []FinalScore, err error) {
 	var sp packet0x28
 	var c int
 	smap := make(map[byte]int)
@@ -741,7 +741,7 @@ func getFinalScores(list []packetRec, pnameMap map[byte]string) (finalScores []F
 }
 
 // GenScoreSeries extracts the series of 0x28 packets from the game
-func GenScoreSeries(list []packetRec, pnameMap map[byte]string) (series map[string][]SPLite, err error) {
+func GenScoreSeries(list []PacketRec, pnameMap map[byte]string) (series map[string][]SPLite, err error) {
 	series = make(map[string][]SPLite)
 	seriesFull := make(map[string][]packet0x28)
 	var (
@@ -796,7 +796,7 @@ func GenScoreSeries(list []packetRec, pnameMap map[byte]string) (series map[stri
 	return
 }
 
-func getTeams(list []packetRec, gp *game) (allies []int, err error) {
+func getTeams(list []PacketRec, gp *game) (allies []int, err error) {
 	// If a player allies another player and that player allies them back
 	// they are allies. If a player unallies a player they are no longer allies.
 	alliedTimer := make([]int, 10)

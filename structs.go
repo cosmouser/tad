@@ -49,7 +49,8 @@ type playerBlock struct {
 	Name   [64]byte
 }
 
-type packetRec struct {
+// PacketRec is a subpacket of the move referred to in IdemToken
+type PacketRec struct {
 	Time      uint16 // time since last packet in milliseconds
 	Sender    byte
 	IdemToken string // idempotency token, arbitrary uuid
