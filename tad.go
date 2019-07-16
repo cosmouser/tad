@@ -906,57 +906,6 @@ func getFinalScores(list []PacketRec, pnameMap map[byte]string) (finalScores []F
 	return
 }
 
-func TeamsWorker(stream chan PacketRec, gp Game) (allies []int, err error) {
-	// If a player allies another player and that player allies them back
-	// they are allies. If a player unallies a player they are no longer allies.
-	alliedTimer := make([]int, 10)
-	alliedTo := make([]bool, 10)
-	alliedBy := make([]bool, 10)
-	tdpidMap := make(map[int32]byte)
-	for _, p := range gp.Players {
-		tdpidMap[p.TDPID] = p.Number - 1
-	}
-	var moveCounter int
-	var lastToken string
-	for pr := range stream {
-		if pr.IdemToken != lastToken {
-			moveCounter++
-			lastToken = pr.IdemToken
-		}
-		if pr.Data[0] == 0x23 {
-			tmp := packet0x23{}
-			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &tmp)
-			if err != nil {
-				return
-			}
-			if tmp.Status == 1 {
-				if tdpidMap[tmp.Player] == 0 {
-					alliedTo[tdpidMap[tmp.Allied]] = true
-				} else {
-					alliedBy[tdpidMap[tmp.Player]] = true
-				}
-			} else {
-				if tdpidMap[tmp.Player] == 0 {
-					alliedTo[tdpidMap[tmp.Allied]] = false
-				} else {
-					alliedBy[tdpidMap[tmp.Player]] = false
-				}
-			}
-		}
-		for i := range alliedTo {
-			if alliedTo[i] && alliedBy[i] {
-				alliedTimer[i]++
-			}
-		}
-	}
-	for i := range alliedTimer {
-		if float64(alliedTimer[i])/float64(gp.TotalMoves) > 0.80 {
-			allies = append(allies, i)
-		}
-	}
-	return
-}
-
 func getTeams(list []PacketRec, gp *Game) (allies []int, err error) {
 	// If a player allies another player and that player allies them back
 	// they are allies. If a player unallies a player they are no longer allies.
@@ -1008,61 +957,6 @@ func getTeams(list []PacketRec, gp *Game) (allies []int, err error) {
 	return
 }
 
-// ScoreSeriesWorker consumes 0x28 packets from a stream and adds them to a map
-func ScoreSeriesWorker(stream chan PacketRec, pnameMap map[byte]string) (series map[string][]SPLite, err error) {
-	series = make(map[string][]SPLite)
-	seriesFull := make(map[string][]packet0x28)
-	var (
-		scorePacket packet0x28
-		litePacket  SPLite
-		ediff       float64
-		mdiff       float64
-		tdiff       float64
-	)
-	var clock int
-	var lastToken string
-	for pr := range stream {
-		if pr.IdemToken != lastToken {
-			clock += int(pr.Time)
-			lastToken = pr.IdemToken
-		}
-		if pr.Data[0] == 0x28 {
-			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &scorePacket)
-			if err != nil {
-				return nil, err
-			}
-			if len(series[pnameMap[pr.Sender]]) == 0 {
-				series[pnameMap[pr.Sender]] = append(series[pnameMap[pr.Sender]], SPLite{Milliseconds: clock})
-			}
-			if len(seriesFull[pnameMap[pr.Sender]]) == 0 {
-				seriesFull[pnameMap[pr.Sender]] = append(seriesFull[pnameMap[pr.Sender]], packet0x28{})
-			}
-			ediff = float64(scorePacket.TotalE - seriesFull[pnameMap[pr.Sender]][len(seriesFull[pnameMap[pr.Sender]])-1].TotalE)
-			mdiff = float64(scorePacket.TotalM - seriesFull[pnameMap[pr.Sender]][len(seriesFull[pnameMap[pr.Sender]])-1].TotalM)
-			tdiff = float64(clock - series[pnameMap[pr.Sender]][len(series[pnameMap[pr.Sender]])-1].Milliseconds)
-			litePacket.Energy = (ediff / tdiff) * 1000
-			litePacket.Metal = (mdiff / tdiff) * 1000
-			litePacket.Kills = int(scorePacket.Kills)
-			litePacket.Losses = int(scorePacket.Losses)
-			litePacket.TotalE = float64(scorePacket.TotalE)
-			litePacket.TotalM = float64(scorePacket.TotalM)
-			litePacket.ExcessE = float64(scorePacket.ExcessE)
-			litePacket.ExcessM = float64(scorePacket.ExcessM)
-			if math.IsNaN(litePacket.Energy) || math.IsInf(litePacket.Energy, 1) {
-				litePacket.Energy = 1
-			}
-			if math.IsNaN(litePacket.Metal) || math.IsInf(litePacket.Metal, 1) {
-				litePacket.Metal = 1
-			}
-			litePacket.Milliseconds = clock
-			if litePacket.Metal > 1.0 || litePacket.Energy > 1.0 {
-				series[pnameMap[pr.Sender]] = append(series[pnameMap[pr.Sender]], litePacket)
-			}
-			seriesFull[pnameMap[pr.Sender]] = append(seriesFull[pnameMap[pr.Sender]], scorePacket)
-		}
-	}
-	return
-}
 func (gp *Game) NumPlayed() int {
 	var np int
 	for _, p := range gp.Players {
@@ -1071,44 +965,6 @@ func (gp *Game) NumPlayed() int {
 		}
 	}
 	return np
-}
-
-func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalScores []FinalScore, foulPlay []string, err error) {
-	var sp packet0x28
-	var c int
-	smap := make(map[byte]int)
-	for k := range pnameMap {
-		smap[k] = c
-		c++
-	}
-	finalScores = make([]FinalScore, c)
-	for k := range pnameMap {
-		finalScores[smap[k]].Player = pnameMap[k]
-	}
-	for pr := range stream {
-		if _, ok := pnameMap[pr.Sender]; ok && pr.Data[0] == 0x28 {
-			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &sp)
-			if err != nil {
-				return nil, nil, err
-			}
-			if int(sp.Losses) < finalScores[smap[pr.Sender]].Losses {
-				foulPlay = append(foulPlay, pnameMap[pr.Sender])
-			}
-			if int(sp.Kills) < finalScores[smap[pr.Sender]].Kills {
-				foulPlay = append(foulPlay, pnameMap[pr.Sender])
-			}
-			finalScores[smap[pr.Sender]].Status = int(sp.Status)
-			finalScores[smap[pr.Sender]].Won = int(sp.ComKills)
-			finalScores[smap[pr.Sender]].Lost = int(sp.ComLosses)
-			finalScores[smap[pr.Sender]].Kills = int(sp.Kills)
-			finalScores[smap[pr.Sender]].Losses = int(sp.Losses)
-			finalScores[smap[pr.Sender]].TotalE = float64(sp.TotalE)
-			finalScores[smap[pr.Sender]].ExcessE = float64(sp.ExcessE)
-			finalScores[smap[pr.Sender]].TotalM = float64(sp.TotalM)
-			finalScores[smap[pr.Sender]].ExcessM = float64(sp.ExcessM)
-		}
-	}
-	return
 }
 
 // GenScoreSeries extracts the series of 0x28 packets from the game
