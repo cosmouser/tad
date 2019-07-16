@@ -15,7 +15,9 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -38,6 +40,38 @@ var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
 
+func TestComboAnalyze(t *testing.T) {
+	const lambdaTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
+	defer cancel()
+	// begin for-range in records section
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	gp, prs, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+	prConsumers := make([]chan PacketRec, 1)
+	var wg sync.WaitGroup
+	wg.Add(len(prConsumers))
+	for i := range prConsumers {
+		prConsumers[i] = make(chan PacketRec)
+	}
+	// add consumers to each channel
+	for pr := range prs {
+		// copy incoming pr and write to each consumer
+		for i := range prConsumers {
+			prConsumers[i] <- pr
+		}
+	}
+	wg.Wait()
+	for i := range prConsumers {
+		close(prConsumers(i))
+	}
+	tf.Close()
+}
 func TestCheckCheatSettingDetection(t *testing.T) {
 	cheats, err := checkGameForCheats(sample1)
 	if err != nil {
@@ -552,7 +586,9 @@ func TestAnalyzeDemo(t *testing.T) {
 		t.Error(err)
 	}
 	counter := make(map[byte]int)
-	ctx := context.Background()
+	const lambdaTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
+	defer cancel()
 	gp, prs, err := Analyze(ctx, tf)
 	if err != nil {
 		t.Error(err)
