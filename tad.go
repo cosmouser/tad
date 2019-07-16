@@ -2,7 +2,9 @@ package tad
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/binary"
+	"sort"
 	"math"
 	"errors"
 	"fmt"
@@ -662,6 +664,27 @@ func appendDiffData(ds *[]interface{}, pr packetRec) error {
 func diffDataSeries(s1 []interface{}, s2 []interface{}) float64 {
 	shared := lcs.New(s1, s2)
 	return float64(shared.Length())/float64(len(s1))
+}
+func (gp *game) getParty() string {
+	nameToNumber := make(map[string]int)
+	names := make([]string, len(gp.Players))
+	for i := range gp.Players {
+		names[i] = gp.Players[i].Name
+		nameToNumber[names[i]] = i
+	}
+	sort.Strings(names)
+	party := gp.MapName
+	for _, n := range names {
+		tmp := fmt.Sprintf("%v%v%v%v%v",
+		gp.Players[nameToNumber[n]].Name,
+		gp.Players[nameToNumber[n]].Side,
+		gp.Players[nameToNumber[n]].Color,
+		gp.Players[nameToNumber[n]].IP,
+		gp.Players[nameToNumber[n]].TDPID,
+		)
+		party += tmp
+	}
+	return fmt.Sprintf("%x", sha1.Sum([]byte(party)))
 }
 // GenPnames creates a non-alphabetical map of packet from to player name
 func GenPnames(players []DemoPlayer) map[byte]string {

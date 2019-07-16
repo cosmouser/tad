@@ -27,8 +27,8 @@ var sample5 = path.Join("sample", "dcfezkazik.ted")
 var sample6 = path.Join("sample", "dcracefn0608.ted")
 var sample7 = path.Join("sample", "dc3.ted")
 var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
-var altSample1 = path.Join("sample", "match1fn.ted")
-var altSample2 = path.Join("sample", "match1t.ted")
+var altSample1 = path.Join("sample", "match2fn.ted")
+var altSample2 = path.Join("sample", "match2t.ted")
 var darkcometpng = path.Join("sample", "dc.png")
 var corruptionted = path.Join("sample", "corruptionxl.ted")
 var corruptionpng = path.Join("sample", "corruptionxl.png")
@@ -385,6 +385,8 @@ func TestIdentifyAlternate(t *testing.T) {
 	} else {
 		t.Logf("game1 ought to be uploaded as a new game")
 	}
+	t.Log(game1.getParty())
+	t.Log(game2.getParty())
 	tf.Close()
 	tf2.Close()
 
