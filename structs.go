@@ -86,7 +86,7 @@ type DemoPlayer struct {
 	Status string
 	IP     string
 	Cheats bool
-	TDPID int32
+	TDPID  int32
 }
 type unitSyncRecord struct {
 	ID    uint32
@@ -114,7 +114,10 @@ type saveHealth struct {
 	MaxUnits int32
 	Health   [5001]int32
 }
-type playbackFrame struct {
+
+// PlaybackFrame has the locations of each unit in the game at a specific point in time
+// It is used by DrawGif
+type PlaybackFrame struct {
 	Number int
 	Time   int
 	Units  map[uint16]*taUnit
@@ -163,10 +166,10 @@ type SPLite struct {
 	Milliseconds int
 }
 type scoreError struct {
-	player string
+	player       string
 	playerNumber int
 }
+
 func (s *scoreError) Error() string {
 	return "detected foul play"
 }
-

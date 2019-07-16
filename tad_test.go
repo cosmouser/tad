@@ -2,14 +2,12 @@ package tad
 
 import (
 	"bytes"
-	"fmt"
-	"github.com/google/uuid"
 	"crypto/md5"
 	"encoding/binary"
 	"encoding/gob"
 	"encoding/hex"
 	"errors"
-	log "github.com/sirupsen/logrus"
+	"fmt"
 	"image"
 	"io"
 	"net"
@@ -17,6 +15,9 @@ import (
 	"path"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 var sample1 = path.Join("sample", "dckazikdidou.ted")
@@ -35,6 +36,7 @@ var corruptionpng = path.Join("sample", "corruptionxl.png")
 var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
+
 func TestCheckCheatSettingDetection(t *testing.T) {
 	cheats, err := checkGameForCheats(sample1)
 	if err != nil {
@@ -169,7 +171,7 @@ func TestGetLengthInMinutes(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("game was %d minutes long", clock / (1000 * 60))
+	t.Logf("game was %d minutes long", clock/(1000*60))
 	tf.Close()
 }
 func TestGetTeams(t *testing.T) {
@@ -305,7 +307,7 @@ func TestUnitCounts(t *testing.T) {
 				Owner:    int(pr.Sender),
 				NetID:    tmp.NetID,
 				Finished: false,
-				ID: uuid.New().String(),
+				ID:       uuid.New().String(),
 			}
 		}
 		if pr.Data[0] == 0x12 {
@@ -391,7 +393,6 @@ func TestIdentifyAlternate(t *testing.T) {
 	tf2.Close()
 
 }
-
 
 // loadDemo is a function for conveniently opening up demo files and playing
 // through their packets.
@@ -1180,10 +1181,10 @@ func TestDrawGif(t *testing.T) {
 		t.Error(err)
 	}
 	// placeholder for map of unit positions
-	frames := []playbackFrame{}
+	frames := []PlaybackFrame{}
 	unitmem := make(map[uint16]*taUnit)
 	addFrame := func(tval int) {
-		newFrame := playbackFrame{}
+		newFrame := PlaybackFrame{}
 		newFrame.Time = tval
 		newFrame.Number = len(frames)
 		newFrame.Units = make(map[uint16]*taUnit)
@@ -1220,10 +1221,10 @@ func TestDrawGif(t *testing.T) {
 				Owner:    int(pr.Sender),
 				NetID:    tmp.NetID,
 				Finished: false,
-				Pos:     point{
-					X: int(tmp.XPos),
-					Y: int(tmp.YPos),
-					ID: uuid.New().String(),
+				Pos: point{
+					X:    int(tmp.XPos),
+					Y:    int(tmp.YPos),
+					ID:   uuid.New().String(),
 					Time: clock,
 				},
 				ID: uuid.New().String(),
@@ -1335,9 +1336,9 @@ func TestDrawGif(t *testing.T) {
 	}
 	// update frames with calculated unit positions
 	nullPoint := point{
-		X: 0,
-		Y: 0,
-		ID: uuid.New().String(),
+		X:    0,
+		Y:    0,
+		ID:   uuid.New().String(),
 		Time: 0,
 	}
 	for i := range frames {
@@ -1368,7 +1369,6 @@ func TestDrawGif(t *testing.T) {
 		}
 	}
 
-
 	out, err := os.Create(testGif)
 	if err != nil {
 		t.Error(err)
@@ -1390,7 +1390,7 @@ func TestDrawGif(t *testing.T) {
 	// mapRect := image.Rect(0, 0, 6144, 7680)
 	// corruption xl 2
 	mapRect := image.Rect(0, 0, 5888, 11264)
-	err = drawGif(out, frames, mapPic, mapRect)
+	err = DrawGif(out, frames, mapPic, mapRect)
 	if err != nil {
 		t.Error(err)
 	}

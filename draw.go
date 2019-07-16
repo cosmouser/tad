@@ -1,9 +1,6 @@
 package tad
 
 import (
-	"github.com/cosmouser/tnt"
-	"github.com/fogleman/gg"
-	log "github.com/sirupsen/logrus"
 	"image"
 	"image/color"
 	"image/draw"
@@ -13,6 +10,10 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/cosmouser/tnt"
+	"github.com/fogleman/gg"
+	log "github.com/sirupsen/logrus"
 )
 
 type numberedFrame struct {
@@ -21,6 +22,7 @@ type numberedFrame struct {
 }
 
 type unitClass int
+
 const (
 	buildingClass unitClass = iota
 	commanderClass
@@ -72,29 +74,30 @@ func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
 func (t *taUnit) updatePos(timeVal int) {
 	vectorX := float64(t.NextPos.X - t.Pos.X)
 	vectorY := float64(t.NextPos.Y - t.Pos.Y)
-	magnitude := math.Sqrt((vectorX*vectorX)+(vectorY*vectorY))
+	magnitude := math.Sqrt((vectorX * vectorX) + (vectorY * vectorY))
 	if magnitude == 0 {
 		// unit stays in the same place
 		// no update required
 		return
 	}
-	unitVectorX := vectorX/magnitude
-	unitVectorY := vectorY/magnitude
+	unitVectorX := vectorX / magnitude
+	unitVectorY := vectorY / magnitude
 	timeDiff1 := float64(t.NextPos.Time - t.Pos.Time)
 	timeDiff2 := float64(timeVal - t.Pos.Time)
-	distanceModifier := timeDiff2/timeDiff1
-	newX := t.Pos.X + int(unitVectorX * magnitude * distanceModifier)
-	newY := t.Pos.Y + int(unitVectorY * magnitude * distanceModifier)
+	distanceModifier := timeDiff2 / timeDiff1
+	newX := t.Pos.X + int(unitVectorX*magnitude*distanceModifier)
+	newY := t.Pos.Y + int(unitVectorY*magnitude*distanceModifier)
 	t.Pos.X = newX
 	t.Pos.Y = newY
 	t.Pos.Time = timeVal
 }
 
-func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image.Rectangle) error {
+// DrawGif uses a list of PlaybackFrames to create an animation of the game
+func DrawGif(w io.Writer, frames []PlaybackFrame, mapPic image.Image, rect image.Rectangle) error {
 	outGif := gif.GIF{
 		Disposal: make([]byte, len(frames)),
-		Image: make([]*image.Paletted, len(frames)),
-		Delay: make([]int, len(frames)),
+		Image:    make([]*image.Paletted, len(frames)),
+		Delay:    make([]int, len(frames)),
 	}
 	for i := range outGif.Disposal {
 		outGif.Disposal[i] = gif.DisposalPrevious
@@ -124,8 +127,8 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 		tnt.TAPalette[100].(color.RGBA),
 		tnt.TAPalette[210].(color.RGBA),
 	}
-	frameGen := func() <-chan playbackFrame {
-		frameStream := make(chan playbackFrame)
+	frameGen := func() <-chan PlaybackFrame {
+		frameStream := make(chan PlaybackFrame)
 		go func() {
 			defer close(frameStream)
 			for i := range frames {
@@ -137,8 +140,7 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 	done := make(chan interface{})
 	frameStream := frameGen()
 
-
-	frameDrawer := func(done <-chan interface{}, frameStream <-chan playbackFrame) <-chan numberedFrame {
+	frameDrawer := func(done <-chan interface{}, frameStream <-chan PlaybackFrame) <-chan numberedFrame {
 		palettedStream := make(chan numberedFrame)
 		go func() {
 			defer close(palettedStream)

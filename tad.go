@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
-	"sort"
-	"math"
 	"errors"
 	"fmt"
 	"io"
-	lcs "github.com/yudai/golcs"
+	"math"
+	"sort"
+
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	lcs "github.com/yudai/golcs"
 )
 
 // loadSection gets the uint16 length and reads that minus 2 bytes
@@ -663,7 +664,7 @@ func appendDiffData(ds *[]interface{}, pr packetRec) error {
 }
 func diffDataSeries(s1 []interface{}, s2 []interface{}) float64 {
 	shared := lcs.New(s1, s2)
-	return float64(shared.Length())/float64(len(s1))
+	return float64(shared.Length()) / float64(len(s1))
 }
 func (gp *game) getParty() string {
 	nameToNumber := make(map[string]int)
@@ -676,16 +677,17 @@ func (gp *game) getParty() string {
 	party := gp.MapName
 	for _, n := range names {
 		tmp := fmt.Sprintf("%v%v%v%v%v",
-		gp.Players[nameToNumber[n]].Name,
-		gp.Players[nameToNumber[n]].Side,
-		gp.Players[nameToNumber[n]].Color,
-		gp.Players[nameToNumber[n]].IP,
-		gp.Players[nameToNumber[n]].TDPID,
+			gp.Players[nameToNumber[n]].Name,
+			gp.Players[nameToNumber[n]].Side,
+			gp.Players[nameToNumber[n]].Color,
+			gp.Players[nameToNumber[n]].IP,
+			gp.Players[nameToNumber[n]].TDPID,
 		)
 		party += tmp
 	}
 	return fmt.Sprintf("%x", sha1.Sum([]byte(party)))
 }
+
 // GenPnames creates a non-alphabetical map of packet from to player name
 func GenPnames(players []DemoPlayer) map[byte]string {
 	pnames := make(map[byte]string)
@@ -802,13 +804,13 @@ func getTeams(list []packetRec, gp *game) (allies []int, err error) {
 	alliedBy := make([]bool, 10)
 	tdpidMap := make(map[int32]byte)
 	for _, p := range gp.Players {
-		tdpidMap[p.TDPID] = p.Number -1
+		tdpidMap[p.TDPID] = p.Number - 1
 	}
 	var moveCounter int
 	var lastToken string
 	for _, pr := range list {
 		if pr.IdemToken != lastToken {
-			moveCounter += 1
+			moveCounter++
 			lastToken = pr.IdemToken
 		}
 		if pr.Data[0] == 0x23 {
@@ -844,4 +846,3 @@ func getTeams(list []packetRec, gp *game) (allies []int, err error) {
 	}
 	return
 }
-
