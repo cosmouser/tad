@@ -147,9 +147,6 @@ func drawGif(w io.Writer, frames []playbackFrame, mapPic image.Image, rect image
 				case <-done:
 					return
 				case incomingFrame := <-frameStream:
-					// draw the map image into each frame - slow 21 fps
-					// dc := gg.NewContextForImage(mapPic)
-					// draw just the points - fast 70 fps
 					dc := gg.NewContext(mapPic.Bounds().Size().X, mapPic.Bounds().Size().Y)
 					for _, tau := range incomingFrame.Units {
 						drawUnit(dc, tau, scale, playerColors)
