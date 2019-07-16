@@ -379,3 +379,38 @@ func FramesWorker(stream chan PacketRec, maxUnits int) (frames []PlaybackFrame, 
 	}
 	return
 }
+func smoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
+	nullPoint := point{
+		X:    0,
+		Y:    0,
+		ID:   uuid.New().String(),
+		Time: 0,
+	}
+	for i := range frames {
+		for tauID, tau := range frames[i].Units {
+			tau.Owner = colorMap[tau.Owner]
+			toChange := []int{}
+			if tau.NextPos.ID == "" {
+				nextFrame := 0
+				for f := i; f < len(frames); f++ {
+					if unit, ok := frames[f].Units[tauID]; !ok || unit.ID != tau.ID {
+						break
+					}
+					if tau.Pos.ID != frames[f].Units[tauID].Pos.ID {
+						nextFrame = f
+						break
+					}
+					toChange = append(toChange, f)
+				}
+				if nextFrame == 0 {
+					tau.NextPos = nullPoint
+				} else {
+					for _, f := range toChange {
+						frames[f].Units[tauID].NextPos = frames[nextFrame].Units[tauID].Pos
+						frames[f].Units[tauID].updatePos(frames[f].Time)
+					}
+				}
+			}
+		}
+	}
+}
