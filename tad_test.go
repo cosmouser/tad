@@ -1173,7 +1173,7 @@ func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
 	tf.Close()
 }
 func TestDrawGif(t *testing.T) {
-	tf, err := os.Open(corruptionted)
+	tf, err := os.Open(sample6)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1373,7 +1373,7 @@ func TestDrawGif(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bgf, err := os.Open(corruptionpng)
+	bgf, err := os.Open(darkcometpng)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1387,9 +1387,9 @@ func TestDrawGif(t *testing.T) {
 	bgf.Close()
 	// h:6144 w:7680
 	// dark comet
-	// mapRect := image.Rect(0, 0, 6144, 7680)
+	mapRect := image.Rect(0, 0, 6144, 7680)
 	// corruption xl 2
-	mapRect := image.Rect(0, 0, 5888, 11264)
+	// mapRect := image.Rect(0, 0, 5888, 11264)
 	err = DrawGif(out, frames, mapPic, mapRect)
 	if err != nil {
 		t.Error(err)
