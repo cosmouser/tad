@@ -957,8 +957,9 @@ func getTeams(list []PacketRec, gp *Game) (allies []int, err error) {
 	return
 }
 
-// GenScoreSeries2 consumes 0x28 packets from a stream and adds them to a map
-func GenScoreSeries(stream <-chan PacketRec, pnameMap map[byte]string, series *map[string][]SPLite) {
+// ScoreSeriesWorker consumes 0x28 packets from a stream and adds them to a map
+func ScoreSeriesWorker(stream chan PacketRec, pnameMap map[byte]string) (series map[string][]SPLite, err error) {
+	series = make(map[string][]SPLite)
 	seriesFull := make(map[string][]packet0x28)
 	var (
 		scorePacket packet0x28
@@ -1007,6 +1008,53 @@ func GenScoreSeries(stream <-chan PacketRec, pnameMap map[byte]string, series *m
 				series[pnameMap[pr.Sender]] = append(series[pnameMap[pr.Sender]], litePacket)
 			}
 			seriesFull[pnameMap[pr.Sender]] = append(seriesFull[pnameMap[pr.Sender]], scorePacket)
+		}
+	}
+	return
+}
+func (gp *Game) NumPlayed() int {
+	var np int
+	for _, p := range gp.Players {
+		if p.Side != 2 {
+			np++
+		}
+	}
+	return np
+}
+
+func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalScores []FinalScore, foulPlay []string, err error) {
+	var sp packet0x28
+	var c int
+	smap := make(map[byte]int)
+	for k := range pnameMap {
+		smap[k] = c
+		c++
+	}
+	finalScores = make([]FinalScore, c)
+	for k := range pnameMap {
+		finalScores[smap[k]].Player = pnameMap[k]
+	}
+	for pr := range stream {
+		if _, ok := pnameMap[pr.Sender]; ok && pr.Data[0] == 0x28 {
+			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &sp)
+			if err != nil {
+				return nil, nil, err
+			}
+			if int(sp.Losses) < finalScores[smap[pr.Sender]].Losses {
+				foulPlay = append(foulPlay, pnameMap[pr.Sender])
+			}
+			if int(sp.Kills) < finalScores[smap[pr.Sender]].Kills {
+				foulPlay = append(foulPlay, pnameMap[pr.Sender])
+			}
+			finalScores[smap[pr.Sender]].Status = int(sp.Status)
+			finalScores[smap[pr.Sender]].Won = int(sp.ComKills)
+			finalScores[smap[pr.Sender]].Lost = int(sp.ComLosses)
+			finalScores[smap[pr.Sender]].Kills = int(sp.Kills)
+			finalScores[smap[pr.Sender]].Losses = int(sp.Losses)
+			finalScores[smap[pr.Sender]].TotalE = float64(sp.TotalE)
+			finalScores[smap[pr.Sender]].ExcessE = float64(sp.ExcessE)
+			finalScores[smap[pr.Sender]].TotalM = float64(sp.TotalM)
+			finalScores[smap[pr.Sender]].ExcessM = float64(sp.ExcessM)
 		}
 	}
 	return

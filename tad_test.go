@@ -49,27 +49,57 @@ func TestComboAnalyze(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	// parse the game and make a packet stream
 	gp, prs, err := Analyze(ctx, tf)
 	if err != nil {
 		t.Error(err)
 	}
-	prConsumers := make([]chan PacketRec, 1)
+	pmap := GenPnames(gp.Players)
+	// create consumers to take packets from the stream
+	const numConsumers = 2
+	prConsumers := make([]chan PacketRec, numConsumers)
 	var wg sync.WaitGroup
 	wg.Add(len(prConsumers))
 	for i := range prConsumers {
 		prConsumers[i] = make(chan PacketRec)
 	}
+	workerErrors := make([]error, len(prConsumers))
 	// add consumers to each channel
+	// add ScoreSeriesWorker to channel 0
+	scoreSeries := make(map[string][]SPLite)
+	go func() {
+		defer wg.Done()
+		scoreSeries, workerErrors[0] = ScoreSeriesWorker(prConsumers[0], pmap)
+	}()
+	// add FinalScoresWorker to channel 1
+	finalScores := make([]FinalScore, gp.NumPlayed())
+	foulPlay := []string{}
+	go func() {
+		defer wg.Done()
+		finalScores, foulPlay, workerErrors[1] = FinalScoresWorker(prConsumers[1], pmap)
+	}()
+
 	for pr := range prs {
 		// copy incoming pr and write to each consumer
 		for i := range prConsumers {
 			prConsumers[i] <- pr
 		}
 	}
-	wg.Wait()
 	for i := range prConsumers {
-		close(prConsumers(i))
+		close(prConsumers[i])
 	}
+	wg.Wait()
+	for _, e := range workerErrors {
+		if e != nil {
+			t.Error(e)
+		}
+	}
+	// debug
+	for k := range scoreSeries {
+		t.Log(k)
+	}
+	t.Log(finalScores)
+	t.Log(foulPlay)
 	tf.Close()
 }
 func TestCheckCheatSettingDetection(t *testing.T) {
