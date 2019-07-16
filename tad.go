@@ -666,7 +666,7 @@ func diffDataSeries(s1 []interface{}, s2 []interface{}) float64 {
 	shared := lcs.New(s1, s2)
 	return float64(shared.Length()) / float64(len(s1))
 }
-func (gp *game) getParty() string {
+func (gp *Game) getParty() string {
 	nameToNumber := make(map[string]int)
 	names := make([]string, len(gp.Players))
 	for i := range gp.Players {
@@ -796,7 +796,7 @@ func GenScoreSeries(list []PacketRec, pnameMap map[byte]string) (series map[stri
 	return
 }
 
-func getTeams(list []PacketRec, gp *game) (allies []int, err error) {
+func getTeams(list []PacketRec, gp *Game) (allies []int, err error) {
 	// If a player allies another player and that player allies them back
 	// they are allies. If a player unallies a player they are no longer allies.
 	alliedTimer := make([]int, 10)

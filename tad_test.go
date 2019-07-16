@@ -73,7 +73,7 @@ func checkGameForCheats(path string) (bool, error) {
 		return false, err
 	}
 	defer r.Close()
-	g := game{}
+	g := Game{}
 	sum, err := parseSummary(r)
 	if err != nil {
 		return false, err
@@ -162,7 +162,7 @@ func TestGetLengthInMinutes(t *testing.T) {
 	}
 	var clock int
 	var lastToken string
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		if pr.IdemToken != lastToken {
 			clock += int(pr.Time)
 			lastToken = pr.IdemToken
@@ -180,8 +180,8 @@ func TestGetTeams(t *testing.T) {
 		t.Error(err)
 	}
 	packets := []PacketRec{}
-	gs := &game{}
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	gs := &Game{}
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		gs = g
 		packets = append(packets, pr)
 	})
@@ -201,8 +201,8 @@ func TestResourceCheatDetection(t *testing.T) {
 		t.Error(err)
 	}
 	packets := []PacketRec{}
-	gs := &game{}
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	gs := &Game{}
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		gs = g
 		packets = append(packets, pr)
 	})
@@ -227,8 +227,8 @@ func TestResourceCheatDetection(t *testing.T) {
 		t.Error(err)
 	}
 	packets = []PacketRec{}
-	gs = &game{}
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	gs = &Game{}
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		gs = g
 		packets = append(packets, pr)
 	})
@@ -247,8 +247,8 @@ func TestResourceCheatDetection(t *testing.T) {
 		t.Error(err)
 	}
 	packets = []PacketRec{}
-	gs = &game{}
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	gs = &Game{}
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		gs = g
 		packets = append(packets, pr)
 	})
@@ -269,8 +269,8 @@ func TestFinalScoresAndSeries(t *testing.T) {
 		t.Error(err)
 	}
 	packets := []PacketRec{}
-	gs := &game{}
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	gs := &Game{}
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		gs = g
 		packets = append(packets, pr)
 	})
@@ -297,7 +297,7 @@ func TestUnitCounts(t *testing.T) {
 	}
 	unitcount := make([]map[uint16]int, 10)
 	unitmem := make(map[uint16]*taUnit)
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		if pr.Data[0] == 0x09 {
 			tmp := &packet0x09{}
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
@@ -348,9 +348,9 @@ func TestIdentifyAlternate(t *testing.T) {
 	}
 	diffSeries1 := []interface{}{}
 	diffSeries2 := []interface{}{}
-	game1 := &game{}
-	game2 := &game{}
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	game1 := &Game{}
+	game2 := &Game{}
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		game1 = g
 		if len(diffSeries1) < 100 {
 			err = appendDiffData(&diffSeries1, pr)
@@ -363,7 +363,7 @@ func TestIdentifyAlternate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = loadDemo(tf2, func(pr PacketRec, g *game) {
+	err = loadDemo(tf2, func(pr PacketRec, g *Game) {
 		game2 = g
 		if len(diffSeries2) < 100 {
 			err = appendDiffData(&diffSeries2, pr)
@@ -396,8 +396,8 @@ func TestIdentifyAlternate(t *testing.T) {
 
 // loadDemo is a function for conveniently opening up demo files and playing
 // through their packets.
-func loadDemo(r io.ReadSeeker, testFunc func(PacketRec, *game)) error {
-	g := game{}
+func loadDemo(r io.ReadSeeker, testFunc func(PacketRec, *Game)) error {
+	g := Game{}
 	sum, err := parseSummary(r)
 	if err != nil {
 		return err
@@ -578,7 +578,7 @@ func TestLoadDemo(t *testing.T) {
 		t.Error(err)
 	}
 	counter := make(map[byte]int)
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		counter[pr.Data[0]]++
 	})
 	if err != nil {
@@ -1162,7 +1162,7 @@ func TestLoadDemoWithUnitmemAndNames(t *testing.T) {
 		t.Error(err)
 	}
 	gobf.Close()
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		if os.Getenv("playbackMsgs") == "enabled" {
 			t.Log(playbackMsg(pr.Sender, pr.Data, unitnames, unitmem))
 		}
@@ -1205,8 +1205,8 @@ func TestDrawGif(t *testing.T) {
 	var clock, lastTime int
 	var lastToken string
 	var unitSpaces [10]uint16
-	var gp *game
-	err = loadDemo(tf, func(pr PacketRec, g *game) {
+	var gp *Game
+	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		gp = g
 		if pr.IdemToken != lastToken {
 			clock += int(pr.Time)

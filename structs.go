@@ -11,8 +11,8 @@ const (
 	playerAddrType
 )
 
-// game holds the state of the replay parser
-type game struct {
+// Game holds the state of the replay parser
+type Game struct {
 	MapName    string
 	Players    []DemoPlayer
 	LobbyChat  []string
