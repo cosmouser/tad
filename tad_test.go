@@ -296,14 +296,14 @@ func TestUnitCounts(t *testing.T) {
 		t.Error(err)
 	}
 	unitcount := make([]map[uint16]int, 10)
-	unitmem := make(map[uint16]*taUnit)
+	unitmem := make(map[uint16]*TAUnit)
 	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		if pr.Data[0] == 0x09 {
 			tmp := &packet0x09{}
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
 				t.Error(err)
 			}
-			unitmem[tmp.UnitID] = &taUnit{
+			unitmem[tmp.UnitID] = &TAUnit{
 				Owner:    int(pr.Sender),
 				NetID:    tmp.NetID,
 				Finished: false,
@@ -1182,14 +1182,14 @@ func TestDrawGif(t *testing.T) {
 	}
 	// placeholder for map of unit positions
 	frames := []PlaybackFrame{}
-	unitmem := make(map[uint16]*taUnit)
+	unitmem := make(map[uint16]*TAUnit)
 	addFrame := func(tval int) {
 		newFrame := PlaybackFrame{}
 		newFrame.Time = tval
 		newFrame.Number = len(frames)
-		newFrame.Units = make(map[uint16]*taUnit)
+		newFrame.Units = make(map[uint16]*TAUnit)
 		for k, v := range unitmem {
-			newFrame.Units[k] = new(taUnit)
+			newFrame.Units[k] = new(TAUnit)
 			newFrame.Units[k].Owner = v.Owner
 			newFrame.Units[k].NetID = v.NetID
 			newFrame.Units[k].Finished = v.Finished
@@ -1217,7 +1217,7 @@ func TestDrawGif(t *testing.T) {
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
 				t.Error(err)
 			}
-			unitmem[tmp.UnitID] = &taUnit{
+			unitmem[tmp.UnitID] = &TAUnit{
 				Owner:    int(pr.Sender),
 				NetID:    tmp.NetID,
 				Finished: false,

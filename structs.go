@@ -121,16 +121,18 @@ type saveHealth struct {
 type PlaybackFrame struct {
 	Number int
 	Time   int
-	Units  map[uint16]*taUnit
+	Units  map[uint16]*TAUnit
 }
-type taUnit struct {
+
+// TAUnit is a unit in the game
+type TAUnit struct {
 	Owner    int
 	NetID    uint16
 	Finished bool
+	ID       string // uuid per unit per game
 	Pos      point
 	NextPos  point
 	Class    unitClass
-	ID       string
 }
 type point struct {
 	X    int

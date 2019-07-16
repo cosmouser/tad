@@ -31,7 +31,7 @@ const (
 	airClass
 )
 
-func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
+func drawUnit(dc *gg.Context, t *TAUnit, scale float64, colors []color.RGBA) {
 	dc.SetColor(tnt.TAPalette[0x55])
 	if t == nil || t.Finished == false {
 		return
@@ -71,7 +71,7 @@ func drawUnit(dc *gg.Context, t *taUnit, scale float64, colors []color.RGBA) {
 	return
 }
 
-func (t *taUnit) updatePos(timeVal int) {
+func (t *TAUnit) updatePos(timeVal int) {
 	vectorX := float64(t.NextPos.X - t.Pos.X)
 	vectorY := float64(t.NextPos.Y - t.Pos.Y)
 	magnitude := math.Sqrt((vectorX * vectorX) + (vectorY * vectorY))
