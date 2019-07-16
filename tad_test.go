@@ -2,6 +2,7 @@ package tad
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/binary"
 	"encoding/gob"
@@ -346,52 +347,25 @@ func TestIdentifyAlternate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	diffSeries1 := []interface{}{}
-	diffSeries2 := []interface{}{}
 	game1 := &Game{}
-	game2 := &Game{}
 	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		game1 = g
-		if len(diffSeries1) < 100 {
-			err = appendDiffData(&diffSeries1, pr)
-			if err != nil {
-				t.Error(err)
-			}
-		}
-		return
 	})
 	if err != nil {
 		t.Error(err)
 	}
+	tf.Close()
+	game2 := &Game{}
 	err = loadDemo(tf2, func(pr PacketRec, g *Game) {
 		game2 = g
-		if len(diffSeries2) < 100 {
-			err = appendDiffData(&diffSeries2, pr)
-			if err != nil {
-				t.Error(err)
-			}
-		}
-		return
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	matchPercent := diffDataSeries(diffSeries1, diffSeries2)
-	t.Log(matchPercent)
-	if matchPercent > 0.89 {
-		if game1.TotalMoves > game2.TotalMoves {
-			t.Logf("game1 ought to be promoted over game2")
-		} else {
-			t.Logf("game1 ought not to be promoted")
-		}
-	} else {
-		t.Logf("game1 ought to be uploaded as a new game")
-	}
-	t.Log(game1.getParty())
-	t.Log(game2.getParty())
-	tf.Close()
 	tf2.Close()
-
+	if game1.GetFingerprint() != game2.GetFingerprint() || game1 == "invalid" {
+		t.Error("fingerprints don't match or are invalid")
+	}
 }
 
 // loadDemo is a function for conveniently opening up demo files and playing
@@ -571,6 +545,22 @@ func loadDemo(r io.ReadSeeker, testFunc func(PacketRec, *Game)) error {
 		loopCount++
 	}
 	return nil
+}
+func TestAnalyzeDemo(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	counter := make(map[byte]int)
+	ctx := context.Background()
+	gp, prs, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+	for pr := range prs {
+		counter[pr.Data[0]]++
+	}
+	tf.Close()
 }
 func TestLoadDemo(t *testing.T) {
 	tf, err := os.Open(sample1)

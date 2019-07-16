@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	lcs "github.com/yudai/golcs"
 )
 
 // loadSection gets the uint16 length and reads that minus 2 bytes
@@ -52,6 +51,108 @@ func parseExtra(secData []byte) (extra extraSector, err error) {
 	}
 	return
 }
+func loadAndParseExtra(r io.Reader) (extra extraSector, err error) {
+	sec, err := loadSection(r)
+	if err != nil {
+		return extra, err
+	}
+	extra, err = parseExtra(sec)
+	return
+}
+func parseAndCopyPlayer(r io.Reader, p *DemoPlayer) error {
+	player, err := parsePlayer(r)
+	if err != nil {
+		return err
+	}
+	*p = DemoPlayer{
+		Color:  player.Color,
+		Side:   player.Side,
+		Number: player.Number,
+		Name:   string(bytes.TrimRight(player.Name[:], "\x00")),
+	}
+	return nil
+}
+func parseAndCopyStatMsg(r io.Reader, dp *DemoPlayer) error {
+	sm, err := parseStatMsg(r)
+	if err != nil {
+		return err
+	}
+	p, err := createPacket(sm.Data)
+	if err != nil {
+		return err
+	}
+	dp.Status = string(p)
+	dp.Color = p[0x9e]
+	if p[0xa2]&0x20 != 0 {
+		dp.Cheats = true
+	}
+	idn, err := createIdent(p)
+	if err != nil {
+		return err
+	}
+	dp.TDPID = idn.Player1
+	return nil
+}
+func loadExtraSectors(r io.Reader, gp *Game) error {
+	eh, err := loadSection(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	numSectors := int(eh[0])
+	var playerAddrNum int
+	for i := 0; i < numSectors; i++ {
+		extra, err := loadAndParseExtra(r)
+		if err != nil {
+			return nil, nil, err
+		}
+		switch extra.sectorType {
+		case commentsType:
+			log.WithFields(log.Fields{
+				"content": string(extra.data),
+			}).Info("comment(s) detected")
+		case lobbyChatType:
+			lobbyChat, err := parseLobbyChat(extra)
+			if err != nil {
+				return err
+			}
+			gp.LobbyChat = lobbyChat
+		case versionNumberType:
+			gp.Version = string(extra.data)
+		case dateStringType:
+			gp.RecDate = string(extra.data)
+		case recFromType:
+			gp.RecFrom = string(extra.data)
+		case playerAddrType:
+			addr, err := parseAddressBlock(extra)
+			if err != nil {
+				return err
+			}
+			gp.Players[playerAddrNum].IP = addr
+			playerAddrNum++
+		}
+	}
+	return nil
+}
+func parseAndCopyUnitSyncData(r io.Reader, gp *Game) error {
+	upd, err := parseUnitSyncData(r)
+	if err != nil {
+		return err
+	}
+	var updSum uint32
+	for _, v := range upd {
+		if v.InUse {
+			updSum += v.ID + v.CRC
+		}
+	}
+	var sumSlice bytes.Buffer
+	if err := binary.Write(&sumSlice, binary.LittleEndian, updSum); err != nil {
+		return err
+	}
+	sumArr := md5.Sum(sumSlice.Bytes())
+	gp.Unitsum = hex.EncodeToString(sumArr[:])
+	return nil
+}
+
 func parseSummary(r io.Reader) (sum summary, err error) {
 	data, err := loadSection(r)
 	if err != nil {
@@ -621,54 +722,14 @@ func splitPacket(data []byte) (out []byte) {
 	}
 	return
 }
-func appendDiffData(ds *[]interface{}, pr PacketRec) error {
-	switch pr.Data[0] {
-	case 0xd:
-		tmp := &packet0x0d{}
-		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
-			return err
-		}
-		*ds = append(*ds, tmp.OriginX, tmp.OriginZ, tmp.OriginY, tmp.DestX, tmp.DestZ, tmp.DestY)
-	case 0x11:
-		tmp := &packet0x11{}
-		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
-			return err
-		}
-		*ds = append(*ds, tmp.State)
-	case 0xb:
-		tmp := &packet0x0b{}
-		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
-			return err
-		}
-		*ds = append(*ds, tmp.Damage)
-	case 0x5:
-		tmp := &packet0x05{}
-		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
-			return err
-		}
-		*ds = append(*ds, string(tmp.Message[:]))
-	case 0x9:
-		tmp := &packet0x09{}
-		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
-			return err
-		}
-		*ds = append(*ds, tmp.NetID, tmp.XPos, tmp.ZPos, tmp.YPos)
-	case 0xfc:
-		tmp := &packet0xfc{}
-		if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
-			return err
-		}
-		*ds = append(*ds, tmp.XPos, tmp.YPos)
-	}
-	return nil
-}
-func diffDataSeries(s1 []interface{}, s2 []interface{}) float64 {
-	shared := lcs.New(s1, s2)
-	return float64(shared.Length()) / float64(len(s1))
-}
-func (gp *Game) getParty() string {
+
+// GetFingerprint returns a hash that uniquely identifies a game across recorders or "invalid"
+func (gp *Game) GetFingerprint() string {
 	nameToNumber := make(map[string]int)
 	names := make([]string, len(gp.Players))
+	if len(names) == 0 {
+		return "invalid"
+	}
 	for i := range gp.Players {
 		names[i] = gp.Players[i].Name
 		nameToNumber[names[i]] = i
