@@ -45,7 +45,7 @@ func TestComboAnalyze(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
 	// begin for-range in records section
-	tf, err := os.Open(sample1)
+	tf, err := os.Open(sample7)
 	if err != nil {
 		t.Error(err)
 	}
@@ -56,7 +56,7 @@ func TestComboAnalyze(t *testing.T) {
 	}
 	pmap := GenPnames(gp.Players)
 	// create consumers to take packets from the stream
-	const numConsumers = 2
+	const numConsumers = 4
 	prConsumers := make([]chan PacketRec, numConsumers)
 	var wg sync.WaitGroup
 	wg.Add(len(prConsumers))
@@ -77,6 +77,18 @@ func TestComboAnalyze(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		finalScores, foulPlay, workerErrors[1] = FinalScoresWorker(prConsumers[1], pmap)
+	}()
+	// add TeamsWorker to channel 2
+	allies := []int{}
+	go func() {
+		defer wg.Done()
+		allies, workerErrors[2] = TeamsWorker(prConsumers[2], *gp)
+	}()
+	// add FramesWorker to channel 3
+	frames := []PlaybackFrame{}
+	go func() {
+		defer wg.Done()
+		frames, workerErrors[3] = FramesWorker(prConsumers[3])
 	}()
 
 	for pr := range prs {
@@ -100,6 +112,8 @@ func TestComboAnalyze(t *testing.T) {
 	}
 	t.Log(finalScores)
 	t.Log(foulPlay)
+	t.Logf("length of frames: %v", len(frames))
+	t.Logf("allies: %v", allies)
 	tf.Close()
 }
 func TestCheckCheatSettingDetection(t *testing.T) {

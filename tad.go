@@ -906,6 +906,57 @@ func getFinalScores(list []PacketRec, pnameMap map[byte]string) (finalScores []F
 	return
 }
 
+func TeamsWorker(stream chan PacketRec, gp Game) (allies []int, err error) {
+	// If a player allies another player and that player allies them back
+	// they are allies. If a player unallies a player they are no longer allies.
+	alliedTimer := make([]int, 10)
+	alliedTo := make([]bool, 10)
+	alliedBy := make([]bool, 10)
+	tdpidMap := make(map[int32]byte)
+	for _, p := range gp.Players {
+		tdpidMap[p.TDPID] = p.Number - 1
+	}
+	var moveCounter int
+	var lastToken string
+	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			moveCounter++
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x23 {
+			tmp := packet0x23{}
+			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &tmp)
+			if err != nil {
+				return
+			}
+			if tmp.Status == 1 {
+				if tdpidMap[tmp.Player] == 0 {
+					alliedTo[tdpidMap[tmp.Allied]] = true
+				} else {
+					alliedBy[tdpidMap[tmp.Player]] = true
+				}
+			} else {
+				if tdpidMap[tmp.Player] == 0 {
+					alliedTo[tdpidMap[tmp.Allied]] = false
+				} else {
+					alliedBy[tdpidMap[tmp.Player]] = false
+				}
+			}
+		}
+		for i := range alliedTo {
+			if alliedTo[i] && alliedBy[i] {
+				alliedTimer[i]++
+			}
+		}
+	}
+	for i := range alliedTimer {
+		if float64(alliedTimer[i])/float64(gp.TotalMoves) > 0.80 {
+			allies = append(allies, i)
+		}
+	}
+	return
+}
+
 func getTeams(list []PacketRec, gp *Game) (allies []int, err error) {
 	// If a player allies another player and that player allies them back
 	// they are allies. If a player unallies a player they are no longer allies.
