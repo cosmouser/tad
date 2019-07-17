@@ -1022,3 +1022,13 @@ func GenScoreSeries(list []PacketRec, pnameMap map[byte]string) (series map[stri
 	}
 	return
 }
+func (gp *Game) MakeColorMap() map[int]int {
+	colorMap := make(map[int]int)
+	for i := range gp.Players {
+		// only index the color if the player is not a watcher
+		if gp.Players[i].Side != 2 {
+			colorMap[int(gp.Players[i].Number)] = int(gp.Players[i].Color)
+		}
+	}
+	return colorMap
+}

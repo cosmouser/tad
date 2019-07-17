@@ -97,8 +97,8 @@ func TestComboAnalyze(t *testing.T) {
 		unitCounts, workerErrors[4] = UnitCountWorker(prConsumers[4])
 	}()
 
+	// copy incoming pr and write to each consumer
 	for pr := range prs {
-		// copy incoming pr and write to each consumer
 		for i := range prConsumers {
 			prConsumers[i] <- pr
 		}
@@ -106,6 +106,7 @@ func TestComboAnalyze(t *testing.T) {
 	for i := range prConsumers {
 		close(prConsumers[i])
 	}
+	// wait for each consumer to finish preparing their product
 	wg.Wait()
 	for _, e := range workerErrors {
 		if e != nil {
@@ -113,7 +114,21 @@ func TestComboAnalyze(t *testing.T) {
 		}
 	}
 	// draw the gif of the demo
-
+	colorMap := gp.MakeColorMap()
+	smoothUnitMovement(frames, colorMap)
+	// this needs to be pulled from some source- or the drawing part
+	// ought to be cancelled
+	mapRect := image.Rect(0, 0, 6144, 7680)
+	out, err := os.Create(testGif)
+	if err != nil {
+		t.Error(err)
+	}
+	const maxDimension = 720
+	err = gp.DrawGif(out, frames, maxDimension, mapRect)
+	if err != nil {
+		t.Error(err)
+	}
+	out.Close()
 	// debug section
 	for k := range scoreSeries {
 		t.Log(k)

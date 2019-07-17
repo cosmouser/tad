@@ -5,9 +5,19 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"github.com/cosmouser/tnt"
+	"github.com/fogleman/gg"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/gif"
 	"io"
 	"math"
+	"runtime"
+	"sync"
+	"time"
 )
 
 // Analyze opens up a demo and gives back the game's data and a channel of its packets
@@ -378,6 +388,138 @@ func FramesWorker(stream chan PacketRec, maxUnits int) (frames []PlaybackFrame, 
 		}
 	}
 	return
+}
+
+// DrawGif writes a gif of the frames and takes the max dimension of the output picture to
+// scale the points to the image from their original coordinates.
+func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, maxDimension int, rect image.Rectangle) error {
+	outGif := gif.GIF{
+		Disposal: make([]byte, len(frames)),
+		Image:    make([]*image.Paletted, len(frames)),
+		Delay:    make([]int, len(frames)),
+	}
+	for i := range outGif.Disposal {
+		outGif.Disposal[i] = gif.DisposalPrevious
+	}
+	for i := range outGif.Delay {
+		outGif.Delay[i] = 10
+	}
+	maxDim := float64(maxDimension)
+	var scale float64
+	if rect.Size().X > rect.Size().Y {
+		scale = maxDim / float64(rect.Size().X)
+	} else {
+		scale = maxDim / float64(rect.Size().Y)
+	}
+	outMaxDimX := int(scale * float64(rect.Size().X))
+	outMaxDimY := int(scale * float64(rect.Size().Y))
+	ts1 := time.Now()
+	gifPalette := tnt.TAPalette
+	gifPalette[0] = image.Transparent
+	playerColors := []color.RGBA{
+		tnt.TAPalette[252].(color.RGBA),
+		tnt.TAPalette[249].(color.RGBA),
+		tnt.TAPalette[17].(color.RGBA),
+		tnt.TAPalette[250].(color.RGBA),
+		tnt.TAPalette[36].(color.RGBA),
+		tnt.TAPalette[218].(color.RGBA),
+		tnt.TAPalette[208].(color.RGBA),
+		tnt.TAPalette[93].(color.RGBA),
+		tnt.TAPalette[100].(color.RGBA),
+		tnt.TAPalette[210].(color.RGBA),
+	}
+	frameGen := func() <-chan PlaybackFrame {
+		frameStream := make(chan PlaybackFrame)
+		go func() {
+			defer close(frameStream)
+			for i := range frames {
+				frameStream <- frames[i]
+			}
+		}()
+		return frameStream
+	}
+	done := make(chan interface{})
+	frameStream := frameGen()
+
+	frameDrawer := func(done <-chan interface{}, frameStream <-chan PlaybackFrame) <-chan numberedFrame {
+		palettedStream := make(chan numberedFrame)
+		go func() {
+			defer close(palettedStream)
+			for {
+				select {
+				case <-done:
+					return
+				case incomingFrame := <-frameStream:
+					dc := gg.NewContext(outMaxDimX, outMaxDimY)
+					for _, tau := range incomingFrame.Units {
+						drawUnit(dc, tau, scale, playerColors)
+					}
+					imgItem := dc.Image()
+					palettedImage := image.NewPaletted(imgItem.Bounds(), gifPalette)
+					draw.Draw(palettedImage, palettedImage.Rect, imgItem, imgItem.Bounds().Min, draw.Over)
+					palettedStream <- numberedFrame{
+						Number:   incomingFrame.Number,
+						Paletted: palettedImage,
+					}
+				}
+			}
+		}()
+		return palettedStream
+	}
+	fanIn := func(done <-chan interface{}, channels ...<-chan numberedFrame) <-chan numberedFrame {
+		var wg sync.WaitGroup
+		multiplexedStream := make(chan numberedFrame)
+		multiplex := func(c <-chan numberedFrame) {
+			defer wg.Done()
+			for i := range c {
+				select {
+				case <-done:
+					return
+				case multiplexedStream <- i:
+				}
+			}
+		}
+		wg.Add(len(channels))
+		for _, c := range channels {
+			go multiplex(c)
+		}
+		go func() {
+			wg.Wait()
+			close(multiplexedStream)
+		}()
+		return multiplexedStream
+	}
+	numDrawers := runtime.NumCPU()
+	drawers := make([]<-chan numberedFrame, numDrawers)
+	for i := 0; i < numDrawers; i++ {
+		drawers[i] = frameDrawer(done, frameStream)
+	}
+	frameStatus := make([]bool, len(frames))
+	multiplexedStream := fanIn(done, drawers...)
+	for f := range multiplexedStream {
+		outGif.Image[f.Number] = f.Paletted
+		frameStatus[f.Number] = true
+		finished := false
+		for _, v := range frameStatus {
+			if v {
+				finished = true
+			} else {
+				finished = false
+				break
+			}
+		}
+		if finished {
+			break
+		}
+	}
+
+	log.Printf("drawing %d frames took %v at %f fps", len(frames), time.Since(ts1), float64(len(frames))/time.Since(ts1).Seconds())
+	gif.EncodeAll(w, &outGif)
+	log.WithFields(log.Fields{
+		"numFrames": len(frames),
+	}).Info()
+
+	return nil
 }
 func smoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
 	nullPoint := point{
