@@ -30,6 +30,7 @@ var sample4 = path.Join("sample", "cheats.ted")
 var sample5 = path.Join("sample", "dcfezkazik.ted")
 var sample6 = path.Join("sample", "dcracefn0608.ted")
 var sample7 = path.Join("sample", "dc3.ted")
+var sampleIPDemo = path.Join("sample", "overIP.ted")
 var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
 var altSample1 = path.Join("sample", "match2fn.ted")
 var altSample2 = path.Join("sample", "match2t.ted")
@@ -651,6 +652,37 @@ func loadDemo(r io.ReadSeeker, testFunc func(PacketRec, *Game)) error {
 		loopCount++
 	}
 	return nil
+}
+func TestAnalyzeIPDemo(t *testing.T) {
+	t.Log("sampleIPDemo")
+	tf, err := os.Open(sampleIPDemo)
+	if err != nil {
+		t.Error(err)
+	}
+	const lambdaTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
+	defer cancel()
+	gp, _, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, player := range gp.Players {
+		t.Logf("player %v has ip: %v and TDPID %v", player.Name, player.IP, player.TDPID)
+	}
+	t.Log("sample7")
+	tf2, err := os.Open(sample7)
+	if err != nil {
+		t.Error(err)
+	}
+	defer cancel()
+	gp, _, err = Analyze(ctx, tf2)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, player := range gp.Players {
+		t.Logf("player %v has ip: %v and TDPID %v", player.Name, player.IP, player.TDPID)
+	}
+	tf.Close()
 }
 func TestAnalyzeDemo(t *testing.T) {
 	tf, err := os.Open(sample1)

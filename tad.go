@@ -71,6 +71,7 @@ func parseAndCopyPlayer(r io.Reader, p *DemoPlayer) error {
 		Color:  player.Color,
 		Side:   player.Side,
 		Number: player.Number,
+		IP: p.IP,
 		Name:   string(bytes.TrimRight(player.Name[:], "\x00")),
 	}
 	return nil
