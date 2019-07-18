@@ -116,7 +116,7 @@ func TestComboAnalyze(t *testing.T) {
 	}
 	// draw the gif of the demo
 	colorMap := gp.MakeColorMap()
-	smoothUnitMovement(frames, colorMap)
+	SmoothUnitMovement(frames, colorMap)
 	// this needs to be pulled from some source- or the drawing part
 	// ought to be cancelled
 	mapRect := image.Rect(0, 0, 6144, 7680)
