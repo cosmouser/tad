@@ -411,8 +411,8 @@ func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, mapPic image.Rectan
 	} else {
 		scale = maxDim / float64(rect.Size().Y)
 	}
-	outMaxDimX := int(scale * float64(rect.Size().X))
-	outMaxDimY := int(scale * float64(rect.Size().Y))
+	outMaxDimX := mapPic.Size().X
+	outMaxDimY := mapPic.Size().Y
 	ts1 := time.Now()
 	gifPalette := tnt.TAPalette
 	gifPalette[0] = image.Transparent
