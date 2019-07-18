@@ -120,12 +120,23 @@ func TestComboAnalyze(t *testing.T) {
 	// this needs to be pulled from some source- or the drawing part
 	// ought to be cancelled
 	mapRect := image.Rect(0, 0, 6144, 7680)
+	bgf, err := os.Open(darkcometpng)
+	if err != nil {
+		t.Error(err)
+	}
+	mapPic, picformat, err := image.Decode(bgf)
+	if picformat != "png" || err != nil {
+		if err != nil {
+			t.Error(err)
+		}
+		t.Error("expected png format")
+	}
+	bgf.Close()
 	out, err := os.Create(testGif)
 	if err != nil {
 		t.Error(err)
 	}
-	const maxDimension = 720
-	err = gp.DrawGif(out, frames, maxDimension, mapRect)
+	err = gp.DrawGif(out, frames, mapPic.Bounds(), mapRect)
 	if err != nil {
 		t.Error(err)
 	}

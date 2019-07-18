@@ -392,7 +392,7 @@ func FramesWorker(stream chan PacketRec, maxUnits int) (frames []PlaybackFrame, 
 
 // DrawGif writes a gif of the frames and takes the max dimension of the output picture to
 // scale the points to the image from their original coordinates.
-func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, maxDimension int, rect image.Rectangle) error {
+func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, mapPic image.Rectangle, rect image.Rectangle) error {
 	outGif := gif.GIF{
 		Disposal: make([]byte, len(frames)),
 		Image:    make([]*image.Paletted, len(frames)),
@@ -404,7 +404,7 @@ func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, maxDimension int, r
 	for i := range outGif.Delay {
 		outGif.Delay[i] = 10
 	}
-	maxDim := float64(maxDimension)
+	maxDim := math.Max(float64(mapPic.Size().X), float64(mapPic.Size().Y))
 	var scale float64
 	if rect.Size().X > rect.Size().Y {
 		scale = maxDim / float64(rect.Size().X)
