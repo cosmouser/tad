@@ -521,7 +521,8 @@ func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, maxDimension int, r
 
 	return nil
 }
-func smoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
+// SmoothUnitMovement uses a colorMap to sync colors and adjust unit positions
+func SmoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
 	nullPoint := point{
 		X:    0,
 		Y:    0,
