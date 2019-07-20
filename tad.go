@@ -51,6 +51,10 @@ func parseExtra(secData []byte) (extra extraSector, err error) {
 	n, err = secReader.Read(extra.data)
 	if n != remBytes {
 		return extra, errors.New("parseExtra made short read")
+	} else {
+		if err == io.EOF {
+			err = nil
+		}
 	}
 	return
 }
