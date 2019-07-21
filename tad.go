@@ -91,7 +91,7 @@ func parseAndCopyStatMsg(r io.Reader, dp *DemoPlayer) error {
 	}
 	dp.Status = string(p)
 	dp.Color = p[0x9e]
-	if p[0xa2]&0x20 != 0 {
+	if p[0xa4]&0x20 != 0 {
 		dp.Cheats = true
 	}
 	idn, err := createIdent(p)

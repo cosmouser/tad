@@ -557,3 +557,4 @@ func SmoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
 		}
 	}
 }
+// UnitDataSeriesWorker creates points for unit building analysis
