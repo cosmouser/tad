@@ -178,3 +178,11 @@ type scoreError struct {
 func (s *scoreError) Error() string {
 	return "detected foul play"
 }
+
+// UDSRecord is for exporting unit data series worker data.
+type UDSRecord struct {
+	NetID int
+	Count int
+	SPLite
+}
+

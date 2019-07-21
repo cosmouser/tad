@@ -558,3 +558,116 @@ func SmoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
 	}
 }
 // UnitDataSeriesWorker creates points for unit building analysis
+func UnitDataSeriesWorker(stream chan PacketRec) (out map[int][]UDSRecord, err error) {
+	out = make(map[int][]UDSRecord)
+	uc := make([]map[int]int, 10)
+	unitmem := make(map[uint16]*TAUnit)
+	series := make(map[int]SPLite)
+	seriesFull := make(map[int][]packet0x28)
+	var (
+		scorePacket packet0x28
+		litePacket  SPLite
+		ediff       float64
+		mdiff       float64
+		tdiff       float64
+		udsMain     UDSRecord
+		lastSPLite  int
+		clock       int
+		lastToken   string
+	)
+	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x28 {
+			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &scorePacket)
+			if err != nil {
+				return nil, err
+			}
+			if len(seriesFull[int(pr.Sender)]) == 0 {
+				seriesFull[int(pr.Sender)] = append(seriesFull[int(pr.Sender)], packet0x28{})
+			}
+			ediff = float64(scorePacket.TotalE - seriesFull[int(pr.Sender)][len(seriesFull[int(pr.Sender)])-1].TotalE)
+			mdiff = float64(scorePacket.TotalM - seriesFull[int(pr.Sender)][len(seriesFull[int(pr.Sender)])-1].TotalM)
+			tdiff = float64(clock - lastSPLite)
+			litePacket.Energy = (ediff / tdiff) * 1000
+			litePacket.Metal = (mdiff / tdiff) * 1000
+			litePacket.Kills = int(scorePacket.Kills)
+			litePacket.Losses = int(scorePacket.Losses)
+			litePacket.TotalE = float64(scorePacket.TotalE)
+			litePacket.TotalM = float64(scorePacket.TotalM)
+			litePacket.ExcessE = float64(scorePacket.ExcessE)
+			litePacket.ExcessM = float64(scorePacket.ExcessM)
+			if math.IsNaN(litePacket.Energy) || math.IsInf(litePacket.Energy, 1) {
+				litePacket.Energy = 1
+			}
+			if math.IsNaN(litePacket.Metal) || math.IsInf(litePacket.Metal, 1) {
+				litePacket.Metal = 1
+			}
+			litePacket.Milliseconds = clock
+			if litePacket.Metal > 1.0 || litePacket.Energy > 1.0 {
+				series[int(pr.Sender)] = litePacket
+			}
+			seriesFull[int(pr.Sender)] = append(seriesFull[int(pr.Sender)], scorePacket)
+			lastSPLite = clock
+		}
+		if pr.Data[0] == 0x09 {
+			tmp := &packet0x09{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			unitmem[tmp.UnitID] = &TAUnit{
+				Owner:    int(pr.Sender),
+				NetID:    tmp.NetID,
+				Finished: false,
+				ID:       uuid.New().String(),
+			}
+		}
+		if pr.Data[0] == 0x0c {
+			tmp := &packet0x0c{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			if tau, ok := unitmem[tmp.Destroyed]; ok || tau != nil {
+				if uc[int(pr.Sender)-1] == nil {
+					uc[int(pr.Sender)-1] = make(map[int]int)
+				}
+				uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)]--
+				delete(unitmem, tmp.Destroyed)
+				udsMain = UDSRecord{
+					NetID: int(unitmem[tmp.Destroyed].NetID),
+					Count: uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)],
+					SPLite: series[int(pr.Sender)],
+				}
+				if out[int(pr.Sender)] == nil {
+					out[int(pr.Sender)] = []UDSRecord{}
+				}
+				out[int(pr.Sender)] = append(out[int(pr.Sender)], udsMain)
+			}
+		}
+		if pr.Data[0] == 0x12 {
+			tmp := &packet0x12{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			if tau, ok := unitmem[tmp.BuiltID]; ok && tau != nil && !unitmem[tmp.BuiltID].Finished {
+				unitmem[tmp.BuiltID].Finished = true
+				if uc[int(pr.Sender)-1] == nil {
+					uc[int(pr.Sender)-1] = make(map[int]int)
+				}
+				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)]++
+				udsMain = UDSRecord{
+					NetID: int(unitmem[tmp.BuiltID].NetID),
+					Count: uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)],
+					SPLite: series[int(pr.Sender)],
+				}
+				if out[int(pr.Sender)] == nil {
+					out[int(pr.Sender)] = []UDSRecord{}
+				}
+				out[int(pr.Sender)] = append(out[int(pr.Sender)], udsMain)
+			}
+		}
+	}
+	return
+}
