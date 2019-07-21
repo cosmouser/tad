@@ -30,6 +30,7 @@ var sample4 = path.Join("sample", "cheats.ted")
 var sample5 = path.Join("sample", "dcfezkazik.ted")
 var sample6 = path.Join("sample", "dcracefn0608.ted")
 var sample7 = path.Join("sample", "dc3.ted")
+var sample8 = path.Join("sample", "kazikloses.ted")
 var sampleIPDemo = path.Join("sample", "overIP.ted")
 var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
 var altSample1 = path.Join("sample", "match2fn.ted")
@@ -851,17 +852,22 @@ func TestUnitSeriesExtraction(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(len(data))
+	for k, v := range data {
+		for _, u := range v {
+			t.Logf("%v: %v", k, u)
+		}
+	}
 	tf.Close()
 }
 func TestLoadDemo(t *testing.T) {
-	tf, err := os.Open(sample1)
+	tf, err := os.Open(sample8)
 	if err != nil {
 		t.Error(err)
 	}
-	counter := make(map[byte]int)
 	err = loadDemo(tf, func(pr PacketRec, g *Game) {
-		counter[pr.Data[0]]++
+		if pr.Data[0] == 0x1b {
+			t.Log(hex.Dump(pr.Data))
+		}
 	})
 	if err != nil {
 		t.Error(err)
@@ -941,8 +947,7 @@ func TestParseLobbyChat(t *testing.T) {
 	tf.Close()
 }
 func TestPlaybackMessages(t *testing.T) {
-	t.Skip()
-	tf, err := os.Open(sample2)
+	tf, err := os.Open(sample5)
 	if err != nil {
 		t.Error(err)
 	}
