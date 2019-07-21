@@ -835,6 +835,25 @@ func TestAnalyzeDemo(t *testing.T) {
 	t.Logf("%+v", gp)
 	tf.Close()
 }
+func TestUnitSeriesExtraction(t *testing.T) {
+	tf, err := os.Open(sample1)
+	if err != nil {
+		t.Error(err)
+	}
+	const lambdaTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
+	defer cancel()
+	_, prs, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+	data, err := UnitDataSeriesWorker(prs)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(len(data))
+	tf.Close()
+}
 func TestLoadDemo(t *testing.T) {
 	tf, err := os.Open(sample1)
 	if err != nil {

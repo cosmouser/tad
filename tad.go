@@ -51,10 +51,9 @@ func parseExtra(secData []byte) (extra extraSector, err error) {
 	n, err = secReader.Read(extra.data)
 	if n != remBytes {
 		return extra, errors.New("parseExtra made short read")
-	} else {
-		if err == io.EOF {
-			err = nil
-		}
+	}
+	if err == io.EOF {
+		err = nil
 	}
 	return
 }
@@ -75,7 +74,7 @@ func parseAndCopyPlayer(r io.Reader, p *DemoPlayer) error {
 		Color:  player.Color,
 		Side:   player.Side,
 		Number: player.Number,
-		IP: p.IP,
+		IP:     p.IP,
 		Name:   string(bytes.TrimRight(player.Name[:], "\x00")),
 	}
 	return nil
@@ -962,6 +961,7 @@ func getTeams(list []PacketRec, gp *Game) (allies []int, err error) {
 	return
 }
 
+// NumPlayed returns the number of players who were not watchers
 func (gp *Game) NumPlayed() int {
 	var np int
 	for _, p := range gp.Players {
@@ -1027,6 +1027,8 @@ func GenScoreSeries(list []PacketRec, pnameMap map[byte]string) (series map[stri
 	}
 	return
 }
+
+// MakeColorMap maps color indexes to players
 func (gp *Game) MakeColorMap() map[int]int {
 	colorMap := make(map[int]int)
 	for i := range gp.Players {

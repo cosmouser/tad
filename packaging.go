@@ -5,10 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"github.com/cosmouser/tnt"
-	"github.com/fogleman/gg"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"image"
 	"image/color"
 	"image/draw"
@@ -18,6 +14,11 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/cosmouser/tnt"
+	"github.com/fogleman/gg"
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 // Analyze opens up a demo and gives back the game's data and a channel of its packets
@@ -521,6 +522,7 @@ func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, mapPic image.Rectan
 
 	return nil
 }
+
 // SmoothUnitMovement uses a colorMap to sync colors and adjust unit positions
 func SmoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
 	nullPoint := point{
@@ -557,8 +559,9 @@ func SmoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
 		}
 	}
 }
+
 // UnitDataSeriesWorker creates points for unit building analysis
-func UnitDataSeriesWorker(stream chan PacketRec) (out map[int][]UDSRecord, err error) {
+func UnitDataSeriesWorker(stream <-chan PacketRec) (out map[int][]UDSRecord, err error) {
 	out = make(map[int][]UDSRecord)
 	uc := make([]map[int]int, 10)
 	unitmem := make(map[uint16]*TAUnit)
@@ -636,8 +639,8 @@ func UnitDataSeriesWorker(stream chan PacketRec) (out map[int][]UDSRecord, err e
 				uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)]--
 				delete(unitmem, tmp.Destroyed)
 				udsMain = UDSRecord{
-					NetID: int(unitmem[tmp.Destroyed].NetID),
-					Count: uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)],
+					NetID:  int(unitmem[tmp.Destroyed].NetID),
+					Count:  uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)],
 					SPLite: series[int(pr.Sender)],
 				}
 				if out[int(pr.Sender)] == nil {
@@ -658,8 +661,8 @@ func UnitDataSeriesWorker(stream chan PacketRec) (out map[int][]UDSRecord, err e
 				}
 				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)]++
 				udsMain = UDSRecord{
-					NetID: int(unitmem[tmp.BuiltID].NetID),
-					Count: uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)],
+					NetID:  int(unitmem[tmp.BuiltID].NetID),
+					Count:  uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)],
 					SPLite: series[int(pr.Sender)],
 				}
 				if out[int(pr.Sender)] == nil {
