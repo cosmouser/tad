@@ -637,12 +637,12 @@ func UnitDataSeriesWorker(stream <-chan PacketRec) (out map[int][]UDSRecord, err
 					uc[int(pr.Sender)-1] = make(map[int]int)
 				}
 				uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)]--
-				delete(unitmem, tmp.Destroyed)
 				udsMain = UDSRecord{
 					NetID:  int(unitmem[tmp.Destroyed].NetID),
 					Count:  uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)],
 					SPLite: series[int(pr.Sender)],
 				}
+				delete(unitmem, tmp.Destroyed)
 				if out[int(pr.Sender)] == nil {
 					out[int(pr.Sender)] = []UDSRecord{}
 				}
