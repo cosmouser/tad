@@ -497,6 +497,9 @@ func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, mapPic image.Rectan
 				case incomingFrame := <-frameStream:
 					dc := gg.NewContext(outMaxDimX, outMaxDimY)
 					for _, tau := range incomingFrame.Units {
+						if tau.Pos.X < 0 || tau.Pos.Y < 0 {
+							continue
+						}
 						drawUnit(dc, tau, scale, playerColors)
 					}
 					imgItem := dc.Image()
