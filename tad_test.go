@@ -169,7 +169,7 @@ func TestComboAnalyze(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
 	// begin for-range in records section
-	tf, err := os.Open(altSample2)
+	tf, err := os.Open(sample8)
 	if err != nil {
 		t.Error(err)
 	}

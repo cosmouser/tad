@@ -279,6 +279,8 @@ func TimeToDieWorker(stream chan PacketRec, gp Game) (ttd [10]int, err error) {
 			}
 		}
 	}
+	// add a millisecond for difference
+	clock++
 	for i := range gp.Players {
 		if ttd[i] == 0 && gp.Players[i].Side != 2 {
 			ttd[i] = clock
