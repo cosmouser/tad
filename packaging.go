@@ -251,6 +251,42 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]int, err error) {
 	return
 }
 
+// TimeToDieWorker finds out when each player dies
+func TimeToDieWorker(stream chan PacketRec, gp Game) (ttd [10]int, err error) {
+	var clock int
+	var lastToken string
+	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x0c {
+			tmp := &packet0x0c{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return ttd, err
+			}
+			if int(tmp.Destroyed)%gp.MaxUnits == 1 {
+				// pr.Sender - 1 is now dead
+				ttd[int(pr.Sender)-1] = clock
+			}
+		}
+		if pr.Data[0] == 0x1b {
+			tdpid := binary.LittleEndian.Uint32(pr.Data[1:5])
+			sv := pr.Data[5]
+			if sv == 6 && int32(tdpid) == gp.Players[int(pr.Sender)-1].TDPID {
+				// pr.Sender -1 is now rejected
+				ttd[int(pr.Sender)-1] = clock
+			}
+		}
+	}
+	for i := range gp.Players {
+		if ttd[i] == 0 && gp.Players[i].Side != 2 {
+			ttd[i] = clock
+		}
+	}
+	return
+}
+
 // FramesWorker consumes packets from a stream and returns a series of PlaybackFrames for
 // drawing a GIF
 func FramesWorker(stream chan PacketRec, maxUnits int) (frames []PlaybackFrame, err error) {

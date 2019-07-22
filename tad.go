@@ -293,7 +293,6 @@ func getGameLengthAndTTD(r io.Reader, gp *Game) error {
 			}
 		} else {
 			gp.TimeToDie[int(pr.Sender)-1] = totalMoves
-			gp.Players[int(pr.Sender)-1].TimeToDie = totalMilliseconds
 			totalMoves++
 		}
 	}

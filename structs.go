@@ -155,6 +155,7 @@ type FinalScore struct {
 	ExcessE float64 `json:"excessEnergy"`
 	TotalM  float64 `json:"metalProduced"`
 	ExcessM float64 `json:"excessMetal"`
+	IsLast  bool    `json:"isLast"`
 }
 
 // SPLite is a smaller version of a score packet. It only contains m/e per second.
@@ -185,4 +186,3 @@ type UDSRecord struct {
 	Count int
 	SPLite
 }
-

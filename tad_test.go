@@ -169,7 +169,7 @@ func TestComboAnalyze(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
 	// begin for-range in records section
-	tf, err := os.Open(sample9)
+	tf, err := os.Open(altSample2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -180,7 +180,7 @@ func TestComboAnalyze(t *testing.T) {
 	}
 	pmap := GenPnames(gp.Players)
 	// create consumers to take packets from the stream
-	const numConsumers = 5
+	const numConsumers = 6
 	prConsumers := make([]chan PacketRec, numConsumers)
 	var wg sync.WaitGroup
 	wg.Add(len(prConsumers))
@@ -220,7 +220,12 @@ func TestComboAnalyze(t *testing.T) {
 		defer wg.Done()
 		unitCounts, workerErrors[4] = UnitCountWorker(prConsumers[4])
 	}()
-
+	// add TimeToDieWorker to channel 5
+	var ttd [10]int
+	go func() {
+		defer wg.Done()
+		ttd, workerErrors[5] = TimeToDieWorker(prConsumers[5], *gp)
+	}()
 	// copy incoming pr and write to each consumer
 	for pr := range prs {
 		for i := range prConsumers {
@@ -275,6 +280,7 @@ func TestComboAnalyze(t *testing.T) {
 	}
 	t.Log(finalScores)
 	t.Logf("cheaters: %v", foulPlay)
+	t.Logf("ttd: %v", ttd)
 	t.Logf("length of frames: %v", len(frames))
 	t.Logf("allies: %v", allies)
 	tf.Close()
