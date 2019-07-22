@@ -179,7 +179,7 @@ func ScoreSeriesWorker(stream chan PacketRec, pnameMap map[byte]string) (series 
 }
 
 // FinalScoresWorker consumes packets from a stream and returns the final scores from the game
-func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalScores []FinalScore, foulPlay []string, err error) {
+func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalScores []FinalScore, foulPlay []int, err error) {
 	var sp packet0x28
 	var c int
 	smap := make(map[byte]int)
@@ -198,10 +198,10 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 				return nil, nil, err
 			}
 			if int(sp.Losses) < finalScores[smap[pr.Sender]].Losses {
-				foulPlay = append(foulPlay, pnameMap[pr.Sender])
+				foulPlay = append(foulPlay, int(pr.Sender)-1)
 			}
 			if int(sp.Kills) < finalScores[smap[pr.Sender]].Kills {
-				foulPlay = append(foulPlay, pnameMap[pr.Sender])
+				foulPlay = append(foulPlay, int(pr.Sender)-1)
 			}
 			finalScores[smap[pr.Sender]].Status = int(sp.Status)
 			finalScores[smap[pr.Sender]].Won = int(sp.ComKills)

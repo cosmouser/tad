@@ -31,6 +31,7 @@ var sample5 = path.Join("sample", "dcfezkazik.ted")
 var sample6 = path.Join("sample", "dcracefn0608.ted")
 var sample7 = path.Join("sample", "dc3.ted")
 var sample8 = path.Join("sample", "kazikloses.ted")
+var sample9 = path.Join("sample", "ucharaldfez.ted")
 var sampleIPDemo = path.Join("sample", "overIP.ted")
 var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
 var altSample1 = path.Join("sample", "match2fn.ted")
@@ -48,7 +49,7 @@ func TestAnalyzeEOF1(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
 	// begin for-range in records section
-	tf, err := os.Open(eofSample1)
+	tf, err := os.Open(sample4)
 	if err != nil {
 		t.Error(err)
 	}
@@ -77,7 +78,7 @@ func TestAnalyzeEOF1(t *testing.T) {
 	}()
 	// add FinalScoresWorker to channel 1
 	finalScores := make([]FinalScore, gp.NumPlayed())
-	foulPlay := []string{}
+	foulPlay := []int{}
 	go func() {
 		defer wg.Done()
 		finalScores, foulPlay, workerErrors[1] = FinalScoresWorker(prConsumers[1], pmap)
@@ -168,7 +169,7 @@ func TestComboAnalyze(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
 	// begin for-range in records section
-	tf, err := os.Open(sample7)
+	tf, err := os.Open(sample9)
 	if err != nil {
 		t.Error(err)
 	}
@@ -196,7 +197,7 @@ func TestComboAnalyze(t *testing.T) {
 	}()
 	// add FinalScoresWorker to channel 1
 	finalScores := make([]FinalScore, gp.NumPlayed())
-	foulPlay := []string{}
+	foulPlay := []int{}
 	go func() {
 		defer wg.Done()
 		finalScores, foulPlay, workerErrors[1] = FinalScoresWorker(prConsumers[1], pmap)
@@ -860,7 +861,7 @@ func TestUnitSeriesExtraction(t *testing.T) {
 	tf.Close()
 }
 func TestLoadDemo(t *testing.T) {
-	tf, err := os.Open(sample8)
+	tf, err := os.Open(sample6)
 	if err != nil {
 		t.Error(err)
 	}
@@ -947,7 +948,7 @@ func TestParseLobbyChat(t *testing.T) {
 	tf.Close()
 }
 func TestPlaybackMessages(t *testing.T) {
-	tf, err := os.Open(sample5)
+	tf, err := os.Open(sample9)
 	if err != nil {
 		t.Error(err)
 	}
