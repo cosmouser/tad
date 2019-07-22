@@ -203,6 +203,12 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 			if int(sp.Kills) < finalScores[smap[pr.Sender]].Kills {
 				foulPlay = append(foulPlay, int(pr.Sender)-1)
 			}
+			if float64(sp.TotalE) < finalScores[smap[pr.Sender]].TotalE {
+				foulPlay = append(foulPlay, int(pr.Sender)-1)
+			}
+			if float64(sp.TotalM) < finalScores[smap[pr.Sender]].TotalM {
+				foulPlay = append(foulPlay, int(pr.Sender)-1)
+			}
 			finalScores[smap[pr.Sender]].Status = int(sp.Status)
 			finalScores[smap[pr.Sender]].Won = int(sp.ComKills)
 			finalScores[smap[pr.Sender]].Lost = int(sp.ComLosses)
