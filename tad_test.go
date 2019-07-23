@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/binary"
+	"encoding/csv"
 	"encoding/gob"
 	"encoding/hex"
 	"errors"
@@ -845,14 +846,14 @@ func TestAnalyzeDemo(t *testing.T) {
 	tf.Close()
 }
 func TestUnitSeriesExtraction(t *testing.T) {
-	tf, err := os.Open(sample1)
+	tf, err := os.Open(sample6)
 	if err != nil {
 		t.Error(err)
 	}
 	const lambdaTimeoutSeconds = 120
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
-	_, prs, err := Analyze(ctx, tf)
+	gp, prs, err := Analyze(ctx, tf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -861,9 +862,18 @@ func TestUnitSeriesExtraction(t *testing.T) {
 		t.Error(err)
 	}
 	for k, v := range data {
-		for _, u := range v {
-			t.Logf("%v: %v", k, u)
+		out, err := os.Create(path.Join("tmp", fmt.Sprintf("uds_%v.csv", gp.Players[k-1].Name)))
+		if err != nil {
+			t.Error(err)
 		}
+		ow := csv.NewWriter(out)
+		for _, u := range v {
+			if err := ow.Write(u.Export()); err != nil {
+				t.Error(err)
+			}
+		}
+		ow.Flush()
+		out.Close()
 	}
 	tf.Close()
 }

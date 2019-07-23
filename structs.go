@@ -1,5 +1,10 @@
 package tad
 
+import (
+	"fmt"
+	"strings"
+)
+
 type sectorType int32
 
 const (
@@ -185,4 +190,19 @@ type UDSRecord struct {
 	NetID int
 	Count int
 	SPLite
+}
+
+// Export creates a record for saving the data
+func (u *UDSRecord) Export() []string {
+	data := fmt.Sprintf("%v,%v,%v,%v,%v,%v,%v,%v,%v",
+		u.NetID,
+		u.SPLite.Milliseconds,
+		u.SPLite.Metal,
+		u.SPLite.Energy,
+		u.SPLite.TotalM,
+		u.SPLite.TotalE,
+		u.SPLite.Kills,
+		u.SPLite.Losses,
+		u.Count)
+	return strings.Split(data, ",")
 }
