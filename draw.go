@@ -36,6 +36,9 @@ func drawUnit(dc *gg.Context, t *TAUnit, scale float64, colors []color.RGBA) {
 	if t == nil || t.Finished == false {
 		return
 	}
+	if t.Pos.X < 0 || t.Pos.Y < 0 || t.Pos.X > 65536*2 || t.Pos.Y > 65536*2 {
+		return
+	}
 	switch t.Class {
 	case buildingClass:
 		dc.DrawRectangle(scale*float64(t.Pos.X)-4, scale*float64(t.Pos.Y)-4, 8, 8)

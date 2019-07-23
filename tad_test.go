@@ -32,6 +32,7 @@ var sample6 = path.Join("sample", "dcracefn0608.ted")
 var sample7 = path.Join("sample", "dc3.ted")
 var sample8 = path.Join("sample", "kazikloses.ted")
 var sample9 = path.Join("sample", "ucharaldfez.ted")
+var sample10 = path.Join("sample", "dcracefnbadgif.ted")
 var sampleIPDemo = path.Join("sample", "overIP.ted")
 var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
 var altSample1 = path.Join("sample", "match2fn.ted")
@@ -169,7 +170,7 @@ func TestComboAnalyze(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
 	// begin for-range in records section
-	tf, err := os.Open(sample9)
+	tf, err := os.Open(sample10)
 	if err != nil {
 		t.Error(err)
 	}
