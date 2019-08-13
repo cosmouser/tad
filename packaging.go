@@ -234,9 +234,11 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 // UnitCountWorker consumes packets from a stream and returns a count of units built in the game
 func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err error) {
 	uc = make([]map[int]*unitTypeRecord, 10)
+	isDead := make([]bool, 10)
 	unitmem := make(map[uint16]*TAUnit)
 	var clock int
 	var lastToken string
+	const maxUnits = 1000
 	for pr := range stream {
 		if pr.IdemToken != lastToken {
 			clock += int(pr.Time)
@@ -253,7 +255,34 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err e
 				Finished: false,
 				ID:       uuid.New().String(),
 			}
+			// check to see if its the first unit aka commander
+			if int(tmp.UnitID)%maxUnits == 1 {
+				unitmem[tmp.UnitID].Finished = true
+				unitmem[tmp.UnitID].Class = commanderClass
+			}
 		}
+		if pr.Data[0] == 0x0c {
+			tmp := &packet0x0c{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			// Record kill
+			if tau, ok := unitmem[tmp.Destroyer]; ok && tau != nil {
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
+					ucr.Kills++
+				}
+			}
+			// Record death
+			if tau, ok := unitmem[tmp.Destroyed]; ok && tau != nil && !isDead[int(tau.Owner)-1]{
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
+					ucr.Deaths++
+				}
+				if tau.Class == commanderClass {
+					isDead[int(tau.Owner)-1] = true
+				}
+			}
+		}
+
 		if pr.Data[0] == 0x0b {
 			tmp := &packet0x0b{}
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
@@ -267,7 +296,7 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err e
 			}
 
 			// Record damage sustained
-			if tau, ok := unitmem[tmp.DamagedID]; ok && tau != nil && tmp.Unknown2 == 1 {
+			if tau, ok := unitmem[tmp.DamagedID]; ok && tau != nil && tmp.Unknown2 == 1 && !isDead[int(tau.Owner)-1] {
 				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
 					ucr.DamageReceived += int(tmp.Damage)
 				}
@@ -286,6 +315,7 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err e
 				}
 				if uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] == nil {
 					uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] = new(unitTypeRecord)
+					uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)].FirstProduced = clock
 				}
 				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)].Produced++
 			}

@@ -109,6 +109,13 @@ func TestUnitCountWorker(t *testing.T) {
 	}
 	t.Logf("Time first ARMZEUS was built: %v", unitCounts[0][235].FirstProduced)
 	t.Logf("ARMZEUS has dealt %v damage and received %v damage", unitCounts[0][235].DamageDealt, unitCounts[0][235].DamageReceived)
+	if unitCounts[0][235].Deaths == 0 {
+		t.Error("Expected non-zero value for unitCounts[0][235].Deaths")
+	}
+	if unitCounts[0][235].Kills == 0 {
+		t.Error("Expected non-zero value for unitCounts[0][235].Kills")
+	}
+	t.Logf("k/d for ARMZEUS: %0.2f", float64(unitCounts[0][235].Kills)/float64(unitCounts[0][235].Deaths))
 	tf.Close()
 }
 
