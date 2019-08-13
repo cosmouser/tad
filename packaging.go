@@ -254,6 +254,26 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err e
 				ID:       uuid.New().String(),
 			}
 		}
+		if pr.Data[0] == 0x0b {
+			tmp := &packet0x0b{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			// Record damage dealt
+			if tau, ok := unitmem[tmp.DamagerID]; ok && tau != nil && tmp.Unknown2 == 1 {
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
+					ucr.DamageDealt += int(tmp.Damage)
+				}
+			}
+
+			// Record damage sustained
+			if tau, ok := unitmem[tmp.DamagedID]; ok && tau != nil && tmp.Unknown2 == 1 {
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
+					ucr.DamageReceived += int(tmp.Damage)
+				}
+			}
+		}
+
 		if pr.Data[0] == 0x12 {
 			tmp := &packet0x12{}
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {

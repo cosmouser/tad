@@ -104,6 +104,7 @@ func TestUnitCountWorker(t *testing.T) {
 		}
 	}
 	t.Logf("Count of ARMZEUS: %v", unitCounts[0][235].Produced)
+	t.Logf("ARMZEUS has dealt %v damage and received %v damage", unitCounts[0][235].DamageDealt, unitCounts[0][235].DamageReceived)
 	tf.Close()
 }
 
