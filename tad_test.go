@@ -34,6 +34,7 @@ var sample7 = path.Join("sample", "dc3.ted")
 var sample8 = path.Join("sample", "kazikloses.ted")
 var sample9 = path.Join("sample", "ucharaldfez.ted")
 var sample10 = path.Join("sample", "dcracefnbadgif.ted")
+var sample11 = path.Join("sample", "ataque.ted")
 var sampleIPDemo = path.Join("sample", "overIP.ted")
 var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
 var altSample1 = path.Join("sample", "match2fn.ted")
@@ -45,6 +46,65 @@ var corruptionpng = path.Join("sample", "corruptionxl.png")
 var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
+
+func TestUnitCountWorker(t *testing.T) {
+	const lambdaTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
+	defer cancel()
+	// begin for-range in records section
+	tf, err := os.Open(sample11)
+	if err != nil {
+		t.Error(err)
+	}
+	// parse the game and make a packet stream
+	_, prs, err := Analyze(ctx, tf)
+	//gp, prs, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+//	pmap := GenPnames(gp.Players)
+	// create consumers to take packets from the stream
+	const numConsumers = 1
+	prConsumers := make([]chan PacketRec, numConsumers)
+	var wg sync.WaitGroup
+	wg.Add(len(prConsumers))
+	for i := range prConsumers {
+		prConsumers[i] = make(chan PacketRec)
+	}
+	workerErrors := make([]error, len(prConsumers))
+	// add consumers to each channel
+	// add UnitCountWorker to channel 0
+	unitCounts := make([]map[int]int, 10)
+	go func() {
+		defer wg.Done()
+		unitCounts, workerErrors[0] = UnitCountWorker(prConsumers[0])
+		t.Logf("workerErrors[0]: %v", workerErrors[0])
+	}()
+
+	// copy incoming pr and write to each consumer
+	for pr := range prs {
+		for i := range prConsumers {
+			prConsumers[i] <- pr
+		}
+	}
+	for i := range prConsumers {
+		close(prConsumers[i])
+	}
+	// wait for each consumer to finish preparing their product
+	wg.Wait()
+	for _, e := range workerErrors {
+		if e != nil {
+			t.Error(e)
+		}
+	}
+	// debug section
+	for i := range unitCounts {
+		if unitCounts[i] != nil {
+			t.Log(unitCounts[i])
+		}
+	}
+	tf.Close()
+}
 
 func TestAnalyzeEOF1(t *testing.T) {
 	const lambdaTimeoutSeconds = 120

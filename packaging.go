@@ -224,7 +224,7 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 }
 
 // UnitCountWorker consumes packets from a stream and returns a count of units built in the game
-func UnitCountWorker(stream chan PacketRec) (uc []map[int]int, err error) {
+func UnitCountWorker(stream chan PacketRec) (uc []map[int]unitTypeRecord, err error) {
 	uc = make([]map[int]int, 10)
 	unitmem := make(map[uint16]*TAUnit)
 	for pr := range stream {

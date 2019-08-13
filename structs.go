@@ -206,3 +206,12 @@ func (u *UDSRecord) Export() []string {
 		u.Count)
 	return strings.Split(data, ",")
 }
+
+type unitTypeRecord struct {
+	Kills
+	Deaths
+	Produced
+	FirstProduced
+	DamageDealt
+	DamageReceived
+}
