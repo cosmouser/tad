@@ -74,7 +74,7 @@ func TestUnitCountWorker(t *testing.T) {
 	workerErrors := make([]error, len(prConsumers))
 	// add consumers to each channel
 	// add UnitCountWorker to channel 0
-	unitCounts := make([]map[int]int, 10)
+	unitCounts := make([]map[int]*unitTypeRecord, 10)
 	go func() {
 		defer wg.Done()
 		unitCounts, workerErrors[0] = UnitCountWorker(prConsumers[0])
@@ -103,6 +103,7 @@ func TestUnitCountWorker(t *testing.T) {
 			t.Log(unitCounts[i])
 		}
 	}
+	t.Logf("Count of ARMZEUS: %v", unitCounts[0][235].Produced)
 	tf.Close()
 }
 
@@ -161,7 +162,7 @@ func TestAnalyzeEOF1(t *testing.T) {
 		t.Logf("workerErrors[3]: %v", workerErrors[3])
 	}()
 	// add UnitCountWorker to channel 4
-	unitCounts := make([]map[int]int, 10)
+	unitCounts := make([]map[int]*unitTypeRecord, 10)
 	go func() {
 		defer wg.Done()
 		unitCounts, workerErrors[4] = UnitCountWorker(prConsumers[4])
@@ -277,7 +278,7 @@ func TestComboAnalyze(t *testing.T) {
 		frames, workerErrors[3] = FramesWorker(prConsumers[3], gp.MaxUnits)
 	}()
 	// add UnitCountWorker to channel 4
-	unitCounts := make([]map[int]int, 10)
+	unitCounts := make([]map[int]*unitTypeRecord, 10)
 	go func() {
 		defer wg.Done()
 		unitCounts, workerErrors[4] = UnitCountWorker(prConsumers[4])

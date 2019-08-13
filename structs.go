@@ -208,10 +208,10 @@ func (u *UDSRecord) Export() []string {
 }
 
 type unitTypeRecord struct {
-	Kills
-	Deaths
-	Produced
-	FirstProduced
-	DamageDealt
-	DamageReceived
+	Kills int
+	Deaths int
+	Produced int
+	FirstProduced int // milliseconds
+	DamageDealt int
+	DamageReceived int
 }

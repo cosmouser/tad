@@ -223,11 +223,25 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 	return
 }
 
+// type unitTypeRecord struct {
+// 	Kills int
+// 	Deaths int
+// 	Produced int
+// 	FirstProduced int // milliseconds
+// 	DamageDealt int
+// 	DamageReceived int
+// }
 // UnitCountWorker consumes packets from a stream and returns a count of units built in the game
-func UnitCountWorker(stream chan PacketRec) (uc []map[int]unitTypeRecord, err error) {
-	uc = make([]map[int]int, 10)
+func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err error) {
+	uc = make([]map[int]*unitTypeRecord, 10)
 	unitmem := make(map[uint16]*TAUnit)
+	var clock int
+	var lastToken string
 	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
 		if pr.Data[0] == 0x09 {
 			tmp := &packet0x09{}
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
@@ -248,9 +262,12 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]unitTypeRecord, err er
 			if tau, ok := unitmem[tmp.BuiltID]; ok && tau != nil && !unitmem[tmp.BuiltID].Finished {
 				unitmem[tmp.BuiltID].Finished = true
 				if uc[int(pr.Sender)-1] == nil {
-					uc[int(pr.Sender)-1] = make(map[int]int)
+					uc[int(pr.Sender)-1] = make(map[int]*unitTypeRecord)
 				}
-				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)]++
+				if uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] == nil {
+					uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] = new(unitTypeRecord)
+				}
+				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)].Produced++
 			}
 		}
 	}
