@@ -104,6 +104,10 @@ func TestUnitCountWorker(t *testing.T) {
 		}
 	}
 	t.Logf("Count of ARMZEUS: %v", unitCounts[0][235].Produced)
+	if unitCounts[0][235].FirstProduced == 0 {
+		t.Error("Expected non-zero value for unitCounts[0][235].FirstProduced")
+	}
+	t.Logf("Time first ARMZEUS was built: %v", unitCounts[0][235].FirstProduced)
 	t.Logf("ARMZEUS has dealt %v damage and received %v damage", unitCounts[0][235].DamageDealt, unitCounts[0][235].DamageReceived)
 	tf.Close()
 }
