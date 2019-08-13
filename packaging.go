@@ -222,15 +222,27 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 	}
 	return
 }
+// PlayerMessagesWorker consumes packets from a stream and returns a slice of messages from players
+func PlayerMessagesWorker(stream chan PacketRec) (messages []playerMessage, err error) {
+	var clock int
+	var lastToken string
+	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x05 && pr.Sender != 0{
+			tmp := &packet0x05{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			split := bytes.Split(tmp.Message[:], []byte{0x00})
+			messages = append(messages, playerMessage{Message: string(split[0]), Sent: clock})
+		}
+	}
+	return
+}
 
-// type unitTypeRecord struct {
-// 	Kills int
-// 	Deaths int
-// 	Produced int
-// 	FirstProduced int // milliseconds
-// 	DamageDealt int
-// 	DamageReceived int
-// }
 // UnitCountWorker consumes packets from a stream and returns a count of units built in the game
 func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err error) {
 	uc = make([]map[int]*unitTypeRecord, 10)

@@ -215,3 +215,8 @@ type unitTypeRecord struct {
 	DamageDealt int
 	DamageReceived int
 }
+
+type playerMessage struct {
+	Message string
+	Sent int
+}

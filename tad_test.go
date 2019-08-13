@@ -64,7 +64,7 @@ func TestUnitCountWorker(t *testing.T) {
 	}
 //	pmap := GenPnames(gp.Players)
 	// create consumers to take packets from the stream
-	const numConsumers = 1
+	const numConsumers = 2
 	prConsumers := make([]chan PacketRec, numConsumers)
 	var wg sync.WaitGroup
 	wg.Add(len(prConsumers))
@@ -79,6 +79,13 @@ func TestUnitCountWorker(t *testing.T) {
 		defer wg.Done()
 		unitCounts, workerErrors[0] = UnitCountWorker(prConsumers[0])
 		t.Logf("workerErrors[0]: %v", workerErrors[0])
+	}()
+	// add PlayerMessagesWorker to channel 1
+	pmsgs := []playerMessage{}
+	go func() {
+		defer wg.Done()
+		pmsgs, workerErrors[1] = PlayerMessagesWorker(prConsumers[1])
+		t.Logf("workerErrors[1]: %v", workerErrors[1])
 	}()
 
 	// copy incoming pr and write to each consumer
@@ -116,6 +123,7 @@ func TestUnitCountWorker(t *testing.T) {
 		t.Error("Expected non-zero value for unitCounts[0][235].Kills")
 	}
 	t.Logf("k/d for ARMZEUS: %0.2f", float64(unitCounts[0][235].Kills)/float64(unitCounts[0][235].Deaths))
+	t.Log(pmsgs)
 	tf.Close()
 }
 
