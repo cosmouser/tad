@@ -81,11 +81,11 @@ func TeamsWorker(stream chan PacketRec, gp Game) (allies []int, err error) {
 		tdpidMap[p.TDPID] = p.Number - 1
 	}
 	var moveCounter int
-	var lastToken string
+	var lastMove int
 	for pr := range stream {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastMove {
 			moveCounter++
-			lastToken = pr.IdemToken
+			lastMove = pr.Move
 		}
 		if pr.Data[0] == 0x23 {
 			tmp := packet0x23{}
@@ -133,11 +133,11 @@ func ScoreSeriesWorker(stream chan PacketRec, pnameMap map[byte]string) (series 
 		tdiff       float64
 	)
 	var clock int
-	var lastToken string
+	var lastMove int
 	for pr := range stream {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastMove {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastMove = pr.Move
 		}
 		if pr.Data[0] == 0x28 {
 			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &scorePacket)
@@ -274,12 +274,12 @@ func FramesWorker(stream chan PacketRec, maxUnits int) (frames []PlaybackFrame, 
 		frames = append(frames, newFrame)
 	}
 	var clock, lastTime int
-	var lastToken string
+	var lastMove int
 	var unitSpaces [10]uint16
 	for pr := range stream {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastMove {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastMove = pr.Move
 		}
 		if pr.Data[0] == 0x09 {
 			tmp := &packet0x09{}

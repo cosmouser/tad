@@ -13,7 +13,6 @@ import (
 	"math"
 	"sort"
 
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -71,7 +70,7 @@ func parseAndCopyPlayer(r io.Reader, p *DemoPlayer) error {
 		Color:  player.Color,
 		Side:   player.Side,
 		Number: player.Number,
-		IP: p.IP,
+		IP:     p.IP,
 		Name:   string(bytes.TrimRight(player.Name[:], "\x00")),
 	}
 	return nil
@@ -270,15 +269,15 @@ func getGameLengthAndTTD(r io.Reader, gp *Game) error {
 	var (
 		totalMoves        int
 		totalMilliseconds int
-		lastToken         string
+		lastMove          int
 		err               error
 	)
 	for err != io.EOF {
 		pr := PacketRec{}
-		pr, err = loadMove(r)
-		if pr.IdemToken != lastToken {
+		pr, err = loadMove(r, lastMove)
+		if pr.Move != lastMove {
 			totalMilliseconds += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastMove = pr.Move
 		}
 		if pr.Sender > 10 || pr.Sender < 1 {
 			if err != io.EOF {
@@ -315,7 +314,7 @@ func prGenerator(ctx context.Context, r io.Reader, totalMoves int, maxUnits int)
 		defer close(packetRecStream)
 		for err != io.EOF && loopCount < totalMoves {
 			pr := PacketRec{}
-			pr, err = loadMove(r)
+			pr, err = loadMove(r, loopCount-1)
 			if err != nil && err != io.EOF {
 				log.WithFields(log.Fields{
 					"error": err,
@@ -342,10 +341,10 @@ func prGenerator(ctx context.Context, r io.Reader, totalMoves int, maxUnits int)
 				for {
 					tmp := splitPacket2(&cpdb2, false)
 					msg := PacketRec{
-						Time:      pr.Time,
-						Sender:    pr.Sender,
-						IdemToken: pr.IdemToken,
-						Data:      tmp,
+						Time:   pr.Time,
+						Sender: pr.Sender,
+						Move:   pr.Move,
+						Data:   tmp,
 					}
 					select {
 					case <-ctx.Done():
@@ -369,7 +368,7 @@ func prGenerator(ctx context.Context, r io.Reader, totalMoves int, maxUnits int)
 	}()
 	return packetRecStream
 }
-func loadMove(r io.Reader) (pr PacketRec, err error) {
+func loadMove(r io.Reader, lastMove int) (pr PacketRec, err error) {
 	dat, err := loadSection(r)
 	if err != nil {
 		return pr, err
@@ -384,7 +383,7 @@ func loadMove(r io.Reader) (pr PacketRec, err error) {
 		return pr, err
 	}
 	pr.Sender = sender
-	pr.IdemToken = uuid.New().String()
+	pr.Move = lastMove + 1
 	datLen := len(dat) - 3
 	pr.Data = make([]byte, datLen)
 	if n, err := datr.Read(pr.Data); n != datLen || err != nil {
@@ -918,11 +917,11 @@ func getTeams(list []PacketRec, gp *Game) (allies []int, err error) {
 		tdpidMap[p.TDPID] = p.Number - 1
 	}
 	var moveCounter int
-	var lastToken string
+	var lastMove int
 	for _, pr := range list {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastMove {
 			moveCounter++
-			lastToken = pr.IdemToken
+			lastMove = pr.Move
 		}
 		if pr.Data[0] == 0x23 {
 			tmp := packet0x23{}
@@ -980,11 +979,11 @@ func GenScoreSeries(list []PacketRec, pnameMap map[byte]string) (series map[stri
 		tdiff       float64
 	)
 	var clock int
-	var lastToken string
+	var lastToken int
 	for _, pr := range list {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastToken {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastToken = pr.Move
 		}
 		if pr.Data[0] == 0x28 {
 			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &scorePacket)

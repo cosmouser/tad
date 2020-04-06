@@ -269,11 +269,11 @@ func TestGetLengthInMinutes(t *testing.T) {
 		t.Error(err)
 	}
 	var clock int
-	var lastToken string
+	var lastMove int
 	err = loadDemo(tf, func(pr PacketRec, g *Game) {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastMove {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastMove = pr.Move
 		}
 	})
 	if err != nil {
@@ -577,7 +577,7 @@ func loadDemo(r io.ReadSeeker, testFunc func(PacketRec, *Game)) error {
 	var loopCount int
 	for err != io.EOF {
 		pr := PacketRec{}
-		pr, err = loadMove(r)
+		pr, err = loadMove(r, loopCount)
 		if pr.Sender > 10 || pr.Sender < 1 {
 			if err != io.EOF {
 				log.WithFields(log.Fields{
@@ -607,7 +607,7 @@ func loadDemo(r io.ReadSeeker, testFunc func(PacketRec, *Game)) error {
 	loopCount = 1
 	for err != io.EOF && loopCount < g.TotalMoves {
 		pr := PacketRec{}
-		pr, err = loadMove(r)
+		pr, err = loadMove(r, loopCount-1)
 		if err != nil && err != io.EOF {
 			return err
 		}
@@ -632,10 +632,10 @@ func loadDemo(r io.ReadSeeker, testFunc func(PacketRec, *Game)) error {
 				tmp := splitPacket2(&cpdb2, false)
 				// entry point for testFunc parameter
 				msg := PacketRec{
-					Time:      pr.Time,
-					Sender:    pr.Sender,
-					IdemToken: pr.IdemToken,
-					Data:      tmp,
+					Time:   pr.Time,
+					Sender: pr.Sender,
+					Move:   pr.Move,
+					Data:   tmp,
 				}
 				testFunc(msg, &g)
 				switch tmp[0] {
@@ -858,9 +858,10 @@ func TestPlaybackMessages(t *testing.T) {
 	gobf.Close()
 	playerMetadata := savePlayers{}
 	var increment int
+	var lastMove int
 	for err != io.EOF {
 		pr := PacketRec{}
-		pr, err = loadMove(tf)
+		pr, err = loadMove(tf, lastMove)
 		subpackets, err := deserialize(pr)
 		if err != nil {
 			t.Error(err)
@@ -875,6 +876,7 @@ func TestPlaybackMessages(t *testing.T) {
 			playerMetadata.TimeToDie[int(pr.Sender)-1] = increment
 			increment++
 		}
+		lastMove++
 	}
 	t.Logf("total moves: %d", increment)
 	tf.Close()
@@ -965,7 +967,7 @@ func TestReadHeaders(t *testing.T) {
 	var increment int
 	for err != io.EOF {
 		pr := PacketRec{}
-		pr, err = loadMove(tf)
+		pr, err = loadMove(tf, increment)
 		if pr.Sender > 10 || pr.Sender < 1 {
 			t.Log("very odd")
 		} else {
@@ -1007,7 +1009,7 @@ func TestReadHeaders(t *testing.T) {
 	x2cSlices := make(map[byte][][]byte)
 	for err != io.EOF && increment < totalMoves {
 		pr := PacketRec{}
-		pr, err = loadMove(tf)
+		pr, err = loadMove(tf, increment)
 		if err != nil && err != io.EOF {
 			t.Error(err)
 		}
@@ -1334,14 +1336,14 @@ func TestDrawGif(t *testing.T) {
 		frames = append(frames, newFrame)
 	}
 	var clock, lastTime int
-	var lastToken string
+	var lastMove int
 	var unitSpaces [10]uint16
 	var gp *Game
 	err = loadDemo(tf, func(pr PacketRec, g *Game) {
 		gp = g
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastMove {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastMove = pr.Move
 		}
 		if pr.Data[0] == 0x09 {
 			tmp := &packet0x09{}
