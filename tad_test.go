@@ -62,7 +62,7 @@ func TestUnitCountWorker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-//	pmap := GenPnames(gp.Players)
+	//	pmap := GenPnames(gp.Players)
 	// create consumers to take packets from the stream
 	const numConsumers = 2
 	prConsumers := make([]chan PacketRec, numConsumers)
@@ -74,14 +74,14 @@ func TestUnitCountWorker(t *testing.T) {
 	workerErrors := make([]error, len(prConsumers))
 	// add consumers to each channel
 	// add UnitCountWorker to channel 0
-	unitCounts := make([]map[int]*unitTypeRecord, 10)
+	unitCounts := make([]map[int]*UnitTypeRecord, 10)
 	go func() {
 		defer wg.Done()
 		unitCounts, workerErrors[0] = UnitCountWorker(prConsumers[0])
 		t.Logf("workerErrors[0]: %v", workerErrors[0])
 	}()
 	// add PlayerMessagesWorker to channel 1
-	pmsgs := []playerMessage{}
+	pmsgs := []PlayerMessage{}
 	go func() {
 		defer wg.Done()
 		pmsgs, workerErrors[1] = PlayerMessagesWorker(prConsumers[1])
@@ -116,14 +116,17 @@ func TestUnitCountWorker(t *testing.T) {
 	}
 	t.Logf("Time first ARMZEUS was built: %v", unitCounts[0][235].FirstProduced)
 	t.Logf("ARMZEUS has dealt %v damage and received %v damage", unitCounts[0][235].DamageDealt, unitCounts[0][235].DamageReceived)
-	if unitCounts[0][235].Deaths == 0 {
+	if unitCounts[0][235].GetDeaths() == 0 {
 		t.Error("Expected non-zero value for unitCounts[0][235].Deaths")
 	}
-	if unitCounts[0][235].Kills == 0 {
+	if unitCounts[0][235].GetKills() == 0 {
 		t.Error("Expected non-zero value for unitCounts[0][235].Kills")
 	}
-	t.Logf("k/d for ARMZEUS: %0.2f", float64(unitCounts[0][235].Kills)/float64(unitCounts[0][235].Deaths))
-	t.Log(pmsgs)
+	t.Logf("k/d for ARMZEUS: %0.2f", float64(unitCounts[0][235].GetKills())/float64(unitCounts[0][235].GetDeaths()))
+	t.Log(pmsgs[0])
+	for i, v := range unitCounts[0][235].Deaths {
+		t.Logf("killed by %v of unit type %v", v, i)
+	}
 	tf.Close()
 }
 
@@ -182,7 +185,7 @@ func TestAnalyzeEOF1(t *testing.T) {
 		t.Logf("workerErrors[3]: %v", workerErrors[3])
 	}()
 	// add UnitCountWorker to channel 4
-	unitCounts := make([]map[int]*unitTypeRecord, 10)
+	unitCounts := make([]map[int]*UnitTypeRecord, 10)
 	go func() {
 		defer wg.Done()
 		unitCounts, workerErrors[4] = UnitCountWorker(prConsumers[4])
@@ -298,7 +301,7 @@ func TestComboAnalyze(t *testing.T) {
 		frames, workerErrors[3] = FramesWorker(prConsumers[3], gp.MaxUnits)
 	}()
 	// add UnitCountWorker to channel 4
-	unitCounts := make([]map[int]*unitTypeRecord, 10)
+	unitCounts := make([]map[int]*UnitTypeRecord, 10)
 	go func() {
 		defer wg.Done()
 		unitCounts, workerErrors[4] = UnitCountWorker(prConsumers[4])

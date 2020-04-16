@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -222,8 +223,9 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 	}
 	return
 }
+
 // PlayerMessagesWorker consumes packets from a stream and returns a slice of messages from players
-func PlayerMessagesWorker(stream chan PacketRec) (messages []playerMessage, err error) {
+func PlayerMessagesWorker(stream chan PacketRec) (messages []PlayerMessage, err error) {
 	var clock int
 	var lastToken string
 	for pr := range stream {
@@ -231,21 +233,21 @@ func PlayerMessagesWorker(stream chan PacketRec) (messages []playerMessage, err 
 			clock += int(pr.Time)
 			lastToken = pr.IdemToken
 		}
-		if pr.Data[0] == 0x05 && pr.Sender != 0{
+		if pr.Data[0] == 0x05 && pr.Sender != 0 {
 			tmp := &packet0x05{}
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
 				return nil, err
 			}
 			split := bytes.Split(tmp.Message[:], []byte{0x00})
-			messages = append(messages, playerMessage{Message: string(split[0]), Sent: clock})
+			messages = append(messages, PlayerMessage{Message: string(split[0]), Sent: clock})
 		}
 	}
 	return
 }
 
 // UnitCountWorker consumes packets from a stream and returns a count of units built in the game
-func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err error) {
-	uc = make([]map[int]*unitTypeRecord, 10)
+func UnitCountWorker(stream chan PacketRec) (uc []map[int]*UnitTypeRecord, err error) {
+	uc = make([]map[int]*UnitTypeRecord, 10)
 	isDead := make([]bool, 10)
 	unitmem := make(map[uint16]*TAUnit)
 	var clock int
@@ -280,14 +282,14 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err e
 			}
 			// Record kill
 			if tau, ok := unitmem[tmp.Destroyer]; ok && tau != nil {
-				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
-					ucr.Kills++
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && unitmem[tmp.Destroyed] != nil {
+					ucr.Kills[strconv.Itoa(int(unitmem[tmp.Destroyed].NetID))]++
 				}
 			}
 			// Record death
-			if tau, ok := unitmem[tmp.Destroyed]; ok && tau != nil && !isDead[int(tau.Owner)-1]{
-				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
-					ucr.Deaths++
+			if tau, ok := unitmem[tmp.Destroyed]; ok && tau != nil && !isDead[int(tau.Owner)-1] {
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && unitmem[tmp.Destroyer] != nil {
+					ucr.Deaths[strconv.Itoa(int(unitmem[tmp.Destroyer].NetID))]++
 				}
 				if tau.Class == commanderClass {
 					isDead[int(tau.Owner)-1] = true
@@ -323,10 +325,13 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]*unitTypeRecord, err e
 			if tau, ok := unitmem[tmp.BuiltID]; ok && tau != nil && !unitmem[tmp.BuiltID].Finished {
 				unitmem[tmp.BuiltID].Finished = true
 				if uc[int(pr.Sender)-1] == nil {
-					uc[int(pr.Sender)-1] = make(map[int]*unitTypeRecord)
+					uc[int(pr.Sender)-1] = make(map[int]*UnitTypeRecord)
 				}
 				if uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] == nil {
-					uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] = new(unitTypeRecord)
+					uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] = &UnitTypeRecord{
+						Kills:  make(map[string]int),
+						Deaths: make(map[string]int),
+					}
 					uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)].FirstProduced = clock
 				}
 				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)].Produced++

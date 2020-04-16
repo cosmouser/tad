@@ -207,16 +207,42 @@ func (u *UDSRecord) Export() []string {
 	return strings.Split(data, ",")
 }
 
-type unitTypeRecord struct {
-	Kills int
-	Deaths int
-	Produced int
-	FirstProduced int // milliseconds
-	DamageDealt int
+// UnitTypeRecord is data on a unit type for a player
+type UnitTypeRecord struct {
+	Kills          map[string]int
+	Deaths         map[string]int
+	Produced       int
+	FirstProduced  int // milliseconds
+	DamageDealt    int
 	DamageReceived int
 }
 
-type playerMessage struct {
+// GetDeaths returns the total deaths for the UTR
+func (utr *UnitTypeRecord) GetDeaths() int {
+	if utr.Deaths == nil {
+		return 0
+	}
+	total := 0
+	for _, v := range utr.Deaths {
+		total += v
+	}
+	return total
+}
+
+// GetKills returns the total kills for the UTR
+func (utr *UnitTypeRecord) GetKills() int {
+	if utr.Kills == nil {
+		return 0
+	}
+	total := 0
+	for _, v := range utr.Kills {
+		total += v
+	}
+	return total
+}
+
+// PlayerMessage is an in-game message from a player with a millisecond timestamp
+type PlayerMessage struct {
 	Message string
-	Sent int
+	Sent    int
 }
