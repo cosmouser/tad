@@ -16,6 +16,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// SY_UNIT is the ID of the demo recorder spank tower.
+const SY_UNIT = 2455016279
+
 // loadSection gets the uint16 length and reads that minus 2 bytes
 // into the returned byte slice. It returns an error when reads
 // fail or are incomplete
@@ -143,7 +146,7 @@ func parseAndCopyUnitSyncData(r io.Reader, gp *Game) error {
 	}
 	var updSum uint32
 	for _, v := range upd {
-		if v.InUse {
+		if v.InUse && v.ID != SY_UNIT {
 			updSum += v.ID + v.CRC
 		}
 	}
