@@ -227,11 +227,11 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 // PlayerMessagesWorker consumes packets from a stream and returns a slice of messages from players
 func PlayerMessagesWorker(stream chan PacketRec) (messages []PlayerMessage, err error) {
 	var clock int
-	var lastToken string
+	var lastToken int
 	for pr := range stream {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastToken {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastToken = pr.Move
 		}
 		if pr.Data[0] == 0x05 && pr.Sender != 0 {
 			tmp := &packet0x05{}
@@ -251,12 +251,12 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]*UnitTypeRecord, err e
 	isDead := make([]bool, 10)
 	unitmem := make(map[uint16]*TAUnit)
 	var clock int
-	var lastToken string
+	var lastToken int
 	const maxUnits = 1000
 	for pr := range stream {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastToken {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastToken = pr.Move
 		}
 		if pr.Data[0] == 0x09 {
 			tmp := &packet0x09{}
@@ -344,11 +344,11 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]*UnitTypeRecord, err e
 // TimeToDieWorker finds out when each player dies
 func TimeToDieWorker(stream chan PacketRec, gp Game) (ttd [10]int, err error) {
 	var clock int
-	var lastToken string
+	var lastToken int
 	for pr := range stream {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastToken {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastToken = pr.Move
 		}
 		if pr.Data[0] == 0x0c {
 			tmp := &packet0x0c{}
@@ -704,12 +704,12 @@ func UnitDataSeriesWorker(stream <-chan PacketRec) (out map[int][]UDSRecord, err
 		udsMain     UDSRecord
 		lastSPLite  int
 		clock       int
-		lastToken   string
+		lastToken   int
 	)
 	for pr := range stream {
-		if pr.IdemToken != lastToken {
+		if pr.Move != lastToken {
 			clock += int(pr.Time)
-			lastToken = pr.IdemToken
+			lastToken = pr.Move
 		}
 		if pr.Data[0] == 0x28 {
 			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &scorePacket)
