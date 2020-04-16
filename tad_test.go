@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/binary"
+	"encoding/csv"
 	"encoding/gob"
 	"encoding/hex"
 	"errors"
@@ -30,10 +31,15 @@ var sample4 = path.Join("sample", "cheats.ted")
 var sample5 = path.Join("sample", "dcfezkazik.ted")
 var sample6 = path.Join("sample", "dcracefn0608.ted")
 var sample7 = path.Join("sample", "dc3.ted")
+var sample8 = path.Join("sample", "kazikloses.ted")
+var sample9 = path.Join("sample", "ucharaldfez.ted")
+var sample10 = path.Join("sample", "dcracefnbadgif.ted")
+var sample11 = path.Join("sample", "ataque.ted")
 var sampleIPDemo = path.Join("sample", "overIP.ted")
 var cheatsEnabledSample = path.Join("sample", "cheatsenabled.ted")
 var altSample1 = path.Join("sample", "match2fn.ted")
 var altSample2 = path.Join("sample", "match2t.ted")
+var eofSample1 = path.Join("sample", "eof1.ted")
 var darkcometpng = path.Join("sample", "dc.png")
 var corruptionted = path.Join("sample", "corruptionxl.ted")
 var corruptionpng = path.Join("sample", "corruptionxl.png")
@@ -41,12 +47,95 @@ var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
 
-func TestComboAnalyze(t *testing.T) {
+func TestUnitCountWorker(t *testing.T) {
 	const lambdaTimeoutSeconds = 120
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
 	// begin for-range in records section
-	tf, err := os.Open(sample7)
+	tf, err := os.Open(sample11)
+	if err != nil {
+		t.Error(err)
+	}
+	// parse the game and make a packet stream
+	_, prs, err := Analyze(ctx, tf)
+	//gp, prs, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+	//	pmap := GenPnames(gp.Players)
+	// create consumers to take packets from the stream
+	const numConsumers = 2
+	prConsumers := make([]chan PacketRec, numConsumers)
+	var wg sync.WaitGroup
+	wg.Add(len(prConsumers))
+	for i := range prConsumers {
+		prConsumers[i] = make(chan PacketRec)
+	}
+	workerErrors := make([]error, len(prConsumers))
+	// add consumers to each channel
+	// add UnitCountWorker to channel 0
+	unitCounts := make([]map[int]*UnitTypeRecord, 10)
+	go func() {
+		defer wg.Done()
+		unitCounts, workerErrors[0] = UnitCountWorker(prConsumers[0])
+		t.Logf("workerErrors[0]: %v", workerErrors[0])
+	}()
+	// add PlayerMessagesWorker to channel 1
+	pmsgs := []PlayerMessage{}
+	go func() {
+		defer wg.Done()
+		pmsgs, workerErrors[1] = PlayerMessagesWorker(prConsumers[1])
+		t.Logf("workerErrors[1]: %v", workerErrors[1])
+	}()
+
+	// copy incoming pr and write to each consumer
+	for pr := range prs {
+		for i := range prConsumers {
+			prConsumers[i] <- pr
+		}
+	}
+	for i := range prConsumers {
+		close(prConsumers[i])
+	}
+	// wait for each consumer to finish preparing their product
+	wg.Wait()
+	for _, e := range workerErrors {
+		if e != nil {
+			t.Error(e)
+		}
+	}
+	// debug section
+	for i := range unitCounts {
+		if unitCounts[i] != nil {
+			t.Log(unitCounts[i])
+		}
+	}
+	t.Logf("Count of ARMZEUS: %v", unitCounts[0][235].Produced)
+	if unitCounts[0][235].FirstProduced == 0 {
+		t.Error("Expected non-zero value for unitCounts[0][235].FirstProduced")
+	}
+	t.Logf("Time first ARMZEUS was built: %v", unitCounts[0][235].FirstProduced)
+	t.Logf("ARMZEUS has dealt %v damage and received %v damage", unitCounts[0][235].DamageDealt, unitCounts[0][235].DamageReceived)
+	if unitCounts[0][235].GetDeaths() == 0 {
+		t.Error("Expected non-zero value for unitCounts[0][235].Deaths")
+	}
+	if unitCounts[0][235].GetKills() == 0 {
+		t.Error("Expected non-zero value for unitCounts[0][235].Kills")
+	}
+	t.Logf("k/d for ARMZEUS: %0.2f", float64(unitCounts[0][235].GetKills())/float64(unitCounts[0][235].GetDeaths()))
+	t.Log(pmsgs[0])
+	for i, v := range unitCounts[0][235].Deaths {
+		t.Logf("killed by %v of unit type %v", v, i)
+	}
+	tf.Close()
+}
+
+func TestAnalyzeEOF1(t *testing.T) {
+	const lambdaTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
+	defer cancel()
+	// begin for-range in records section
+	tf, err := os.Open(sample4)
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,31 +160,36 @@ func TestComboAnalyze(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		scoreSeries, workerErrors[0] = ScoreSeriesWorker(prConsumers[0], pmap)
+		t.Logf("workerErrors[0]: %v", workerErrors[0])
 	}()
 	// add FinalScoresWorker to channel 1
 	finalScores := make([]FinalScore, gp.NumPlayed())
-	foulPlay := []string{}
+	foulPlay := []int{}
 	go func() {
 		defer wg.Done()
 		finalScores, foulPlay, workerErrors[1] = FinalScoresWorker(prConsumers[1], pmap)
+		t.Logf("workerErrors[1]: %v", workerErrors[1])
 	}()
 	// add TeamsWorker to channel 2
 	allies := []int{}
 	go func() {
 		defer wg.Done()
 		allies, workerErrors[2] = TeamsWorker(prConsumers[2], *gp)
+		t.Logf("workerErrors[2]: %v", workerErrors[2])
 	}()
 	// add FramesWorker to channel 3
 	frames := []PlaybackFrame{}
 	go func() {
 		defer wg.Done()
 		frames, workerErrors[3] = FramesWorker(prConsumers[3], gp.MaxUnits)
+		t.Logf("workerErrors[3]: %v", workerErrors[3])
 	}()
 	// add UnitCountWorker to channel 4
-	unitCounts := make([]map[int]int, 10)
+	unitCounts := make([]map[int]*UnitTypeRecord, 10)
 	go func() {
 		defer wg.Done()
 		unitCounts, workerErrors[4] = UnitCountWorker(prConsumers[4])
+		t.Logf("workerErrors[4]: %v", workerErrors[4])
 	}()
 
 	// copy incoming pr and write to each consumer
@@ -116,16 +210,27 @@ func TestComboAnalyze(t *testing.T) {
 	}
 	// draw the gif of the demo
 	colorMap := gp.MakeColorMap()
-	smoothUnitMovement(frames, colorMap)
+	SmoothUnitMovement(frames, colorMap)
 	// this needs to be pulled from some source- or the drawing part
 	// ought to be cancelled
 	mapRect := image.Rect(0, 0, 6144, 7680)
+	bgf, err := os.Open(darkcometpng)
+	if err != nil {
+		t.Error(err)
+	}
+	mapPic, picformat, err := image.Decode(bgf)
+	if picformat != "png" || err != nil {
+		if err != nil {
+			t.Error(err)
+		}
+		t.Error("expected png format")
+	}
+	bgf.Close()
 	out, err := os.Create(testGif)
 	if err != nil {
 		t.Error(err)
 	}
-	const maxDimension = 720
-	err = gp.DrawGif(out, frames, maxDimension, mapRect)
+	err = gp.DrawGif(out, frames, mapPic.Bounds(), mapRect)
 	if err != nil {
 		t.Error(err)
 	}
@@ -141,6 +246,127 @@ func TestComboAnalyze(t *testing.T) {
 	}
 	t.Log(finalScores)
 	t.Logf("cheaters: %v", foulPlay)
+	t.Logf("length of frames: %v", len(frames))
+	t.Logf("allies: %v", allies)
+	tf.Close()
+}
+func TestComboAnalyze(t *testing.T) {
+	const lambdaTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
+	defer cancel()
+	// begin for-range in records section
+	tf, err := os.Open(sample10)
+	if err != nil {
+		t.Error(err)
+	}
+	// parse the game and make a packet stream
+	gp, prs, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+	pmap := GenPnames(gp.Players)
+	// create consumers to take packets from the stream
+	const numConsumers = 6
+	prConsumers := make([]chan PacketRec, numConsumers)
+	var wg sync.WaitGroup
+	wg.Add(len(prConsumers))
+	for i := range prConsumers {
+		prConsumers[i] = make(chan PacketRec)
+	}
+	workerErrors := make([]error, len(prConsumers))
+	// add consumers to each channel
+	// add ScoreSeriesWorker to channel 0
+	scoreSeries := make(map[string][]SPLite)
+	go func() {
+		defer wg.Done()
+		scoreSeries, workerErrors[0] = ScoreSeriesWorker(prConsumers[0], pmap)
+	}()
+	// add FinalScoresWorker to channel 1
+	finalScores := make([]FinalScore, gp.NumPlayed())
+	foulPlay := []int{}
+	go func() {
+		defer wg.Done()
+		finalScores, foulPlay, workerErrors[1] = FinalScoresWorker(prConsumers[1], pmap)
+	}()
+	// add TeamsWorker to channel 2
+	allies := []int{}
+	go func() {
+		defer wg.Done()
+		allies, workerErrors[2] = TeamsWorker(prConsumers[2], *gp)
+	}()
+	// add FramesWorker to channel 3
+	frames := []PlaybackFrame{}
+	go func() {
+		defer wg.Done()
+		frames, workerErrors[3] = FramesWorker(prConsumers[3], gp.MaxUnits)
+	}()
+	// add UnitCountWorker to channel 4
+	unitCounts := make([]map[int]*UnitTypeRecord, 10)
+	go func() {
+		defer wg.Done()
+		unitCounts, workerErrors[4] = UnitCountWorker(prConsumers[4])
+	}()
+	// add TimeToDieWorker to channel 5
+	var ttd [10]int
+	go func() {
+		defer wg.Done()
+		ttd, workerErrors[5] = TimeToDieWorker(prConsumers[5], *gp)
+	}()
+	// copy incoming pr and write to each consumer
+	for pr := range prs {
+		for i := range prConsumers {
+			prConsumers[i] <- pr
+		}
+	}
+	for i := range prConsumers {
+		close(prConsumers[i])
+	}
+	// wait for each consumer to finish preparing their product
+	wg.Wait()
+	for _, e := range workerErrors {
+		if e != nil {
+			t.Error(e)
+		}
+	}
+	// draw the gif of the demo
+	colorMap := gp.MakeColorMap()
+	SmoothUnitMovement(frames, colorMap)
+	// this needs to be pulled from some source- or the drawing part
+	// ought to be cancelled
+	mapRect := image.Rect(0, 0, 6144, 7680)
+	bgf, err := os.Open(darkcometpng)
+	if err != nil {
+		t.Error(err)
+	}
+	mapPic, picformat, err := image.Decode(bgf)
+	if picformat != "png" || err != nil {
+		if err != nil {
+			t.Error(err)
+		}
+		t.Error("expected png format")
+	}
+	bgf.Close()
+	out, err := os.Create(testGif)
+	if err != nil {
+		t.Error(err)
+	}
+	err = gp.DrawGif(out, frames, mapPic.Bounds(), mapRect)
+	if err != nil {
+		t.Error(err)
+	}
+	out.Close()
+	// debug section
+	for k := range scoreSeries {
+		t.Log(k)
+	}
+	for i := range unitCounts {
+		if unitCounts[i] != nil {
+			t.Log(unitCounts[i])
+		}
+	}
+	t.Log(finalScores)
+	t.Logf("cheaters: %v", foulPlay)
+	t.Logf("ttd: %v", ttd)
 	t.Logf("length of frames: %v", len(frames))
 	t.Logf("allies: %v", allies)
 	tf.Close()
@@ -703,14 +929,47 @@ func TestAnalyzeDemo(t *testing.T) {
 	t.Logf("%+v", gp)
 	tf.Close()
 }
-func TestLoadDemo(t *testing.T) {
-	tf, err := os.Open(sample1)
+func TestUnitSeriesExtraction(t *testing.T) {
+	tf, err := os.Open(sample6)
 	if err != nil {
 		t.Error(err)
 	}
-	counter := make(map[byte]int)
+	const lambdaTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
+	defer cancel()
+	gp, prs, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+	data, err := UnitDataSeriesWorker(prs)
+	if err != nil {
+		t.Error(err)
+	}
+	for k, v := range data {
+		out, err := os.Create(path.Join("tmp", fmt.Sprintf("uds_%v.csv", gp.Players[k-1].Name)))
+		if err != nil {
+			t.Error(err)
+		}
+		ow := csv.NewWriter(out)
+		for _, u := range v {
+			if err := ow.Write(u.Export()); err != nil {
+				t.Error(err)
+			}
+		}
+		ow.Flush()
+		out.Close()
+	}
+	tf.Close()
+}
+func TestLoadDemo(t *testing.T) {
+	tf, err := os.Open(sample6)
+	if err != nil {
+		t.Error(err)
+	}
 	err = loadDemo(tf, func(pr PacketRec, g *Game) {
-		counter[pr.Data[0]]++
+		if pr.Data[0] == 0x1b {
+			t.Log(hex.Dump(pr.Data))
+		}
 	})
 	if err != nil {
 		t.Error(err)
@@ -790,8 +1049,7 @@ func TestParseLobbyChat(t *testing.T) {
 	tf.Close()
 }
 func TestPlaybackMessages(t *testing.T) {
-	t.Skip()
-	tf, err := os.Open(sample2)
+	tf, err := os.Open(sample9)
 	if err != nil {
 		t.Error(err)
 	}

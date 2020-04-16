@@ -5,10 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"github.com/cosmouser/tnt"
-	"github.com/fogleman/gg"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"image"
 	"image/color"
 	"image/draw"
@@ -16,8 +12,14 @@ import (
 	"io"
 	"math"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
+
+	"github.com/cosmouser/tnt"
+	"github.com/fogleman/gg"
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 // Analyze opens up a demo and gives back the game's data and a channel of its packets
@@ -178,7 +180,7 @@ func ScoreSeriesWorker(stream chan PacketRec, pnameMap map[byte]string) (series 
 }
 
 // FinalScoresWorker consumes packets from a stream and returns the final scores from the game
-func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalScores []FinalScore, foulPlay []string, err error) {
+func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalScores []FinalScore, foulPlay []int, err error) {
 	var sp packet0x28
 	var c int
 	smap := make(map[byte]int)
@@ -197,10 +199,16 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 				return nil, nil, err
 			}
 			if int(sp.Losses) < finalScores[smap[pr.Sender]].Losses {
-				foulPlay = append(foulPlay, pnameMap[pr.Sender])
+				foulPlay = append(foulPlay, int(pr.Sender)-1)
 			}
 			if int(sp.Kills) < finalScores[smap[pr.Sender]].Kills {
-				foulPlay = append(foulPlay, pnameMap[pr.Sender])
+				foulPlay = append(foulPlay, int(pr.Sender)-1)
+			}
+			if float64(sp.TotalE) < finalScores[smap[pr.Sender]].TotalE {
+				foulPlay = append(foulPlay, int(pr.Sender)-1)
+			}
+			if float64(sp.TotalM) < finalScores[smap[pr.Sender]].TotalM {
+				foulPlay = append(foulPlay, int(pr.Sender)-1)
 			}
 			finalScores[smap[pr.Sender]].Status = int(sp.Status)
 			finalScores[smap[pr.Sender]].Won = int(sp.ComKills)
@@ -216,11 +224,40 @@ func FinalScoresWorker(stream chan PacketRec, pnameMap map[byte]string) (finalSc
 	return
 }
 
-// UnitCountWorker consumes packets from a stream and returns a count of units built in the game
-func UnitCountWorker(stream chan PacketRec) (uc []map[int]int, err error) {
-	uc = make([]map[int]int, 10)
-	unitmem := make(map[uint16]*TAUnit)
+// PlayerMessagesWorker consumes packets from a stream and returns a slice of messages from players
+func PlayerMessagesWorker(stream chan PacketRec) (messages []PlayerMessage, err error) {
+	var clock int
+	var lastToken string
 	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x05 && pr.Sender != 0 {
+			tmp := &packet0x05{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			split := bytes.Split(tmp.Message[:], []byte{0x00})
+			messages = append(messages, PlayerMessage{Message: string(split[0]), Sent: clock})
+		}
+	}
+	return
+}
+
+// UnitCountWorker consumes packets from a stream and returns a count of units built in the game
+func UnitCountWorker(stream chan PacketRec) (uc []map[int]*UnitTypeRecord, err error) {
+	uc = make([]map[int]*UnitTypeRecord, 10)
+	isDead := make([]bool, 10)
+	unitmem := make(map[uint16]*TAUnit)
+	var clock int
+	var lastToken string
+	const maxUnits = 1000
+	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
 		if pr.Data[0] == 0x09 {
 			tmp := &packet0x09{}
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
@@ -232,7 +269,54 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]int, err error) {
 				Finished: false,
 				ID:       uuid.New().String(),
 			}
+			// check to see if its the first unit aka commander
+			if int(tmp.UnitID)%maxUnits == 1 {
+				unitmem[tmp.UnitID].Finished = true
+				unitmem[tmp.UnitID].Class = commanderClass
+			}
 		}
+		if pr.Data[0] == 0x0c {
+			tmp := &packet0x0c{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			// Record kill
+			if tau, ok := unitmem[tmp.Destroyer]; ok && tau != nil {
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && unitmem[tmp.Destroyed] != nil {
+					ucr.Kills[strconv.Itoa(int(unitmem[tmp.Destroyed].NetID))]++
+				}
+			}
+			// Record death
+			if tau, ok := unitmem[tmp.Destroyed]; ok && tau != nil && !isDead[int(tau.Owner)-1] {
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && unitmem[tmp.Destroyer] != nil {
+					ucr.Deaths[strconv.Itoa(int(unitmem[tmp.Destroyer].NetID))]++
+				}
+				if tau.Class == commanderClass {
+					isDead[int(tau.Owner)-1] = true
+				}
+			}
+		}
+
+		if pr.Data[0] == 0x0b {
+			tmp := &packet0x0b{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			// Record damage dealt
+			if tau, ok := unitmem[tmp.DamagerID]; ok && tau != nil && tmp.Unknown2 == 1 {
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
+					ucr.DamageDealt += int(tmp.Damage)
+				}
+			}
+
+			// Record damage sustained
+			if tau, ok := unitmem[tmp.DamagedID]; ok && tau != nil && tmp.Unknown2 == 1 && !isDead[int(tau.Owner)-1] {
+				if ucr, ok := uc[int(tau.Owner)-1][int(tau.NetID)]; ok && ucr != nil {
+					ucr.DamageReceived += int(tmp.Damage)
+				}
+			}
+		}
+
 		if pr.Data[0] == 0x12 {
 			tmp := &packet0x12{}
 			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
@@ -241,10 +325,55 @@ func UnitCountWorker(stream chan PacketRec) (uc []map[int]int, err error) {
 			if tau, ok := unitmem[tmp.BuiltID]; ok && tau != nil && !unitmem[tmp.BuiltID].Finished {
 				unitmem[tmp.BuiltID].Finished = true
 				if uc[int(pr.Sender)-1] == nil {
-					uc[int(pr.Sender)-1] = make(map[int]int)
+					uc[int(pr.Sender)-1] = make(map[int]*UnitTypeRecord)
 				}
-				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)]++
+				if uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] == nil {
+					uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)] = &UnitTypeRecord{
+						Kills:  make(map[string]int),
+						Deaths: make(map[string]int),
+					}
+					uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)].FirstProduced = clock
+				}
+				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)].Produced++
 			}
+		}
+	}
+	return
+}
+
+// TimeToDieWorker finds out when each player dies
+func TimeToDieWorker(stream chan PacketRec, gp Game) (ttd [10]int, err error) {
+	var clock int
+	var lastToken string
+	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x0c {
+			tmp := &packet0x0c{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return ttd, err
+			}
+			if int(tmp.Destroyed)%gp.MaxUnits == 1 {
+				// pr.Sender - 1 is now dead
+				ttd[int(pr.Sender)-1] = clock
+			}
+		}
+		if pr.Data[0] == 0x1b {
+			tdpid := binary.LittleEndian.Uint32(pr.Data[1:5])
+			sv := pr.Data[5]
+			if sv == 6 && int32(tdpid) == gp.Players[int(pr.Sender)-1].TDPID {
+				// pr.Sender -1 is now rejected
+				ttd[int(pr.Sender)-1] = clock
+			}
+		}
+	}
+	// add a millisecond for difference
+	clock++
+	for i := range gp.Players {
+		if ttd[i] == 0 && gp.Players[i].Side != 2 {
+			ttd[i] = clock
 		}
 	}
 	return
@@ -392,7 +521,7 @@ func FramesWorker(stream chan PacketRec, maxUnits int) (frames []PlaybackFrame, 
 
 // DrawGif writes a gif of the frames and takes the max dimension of the output picture to
 // scale the points to the image from their original coordinates.
-func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, maxDimension int, rect image.Rectangle) error {
+func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, mapPic image.Rectangle, rect image.Rectangle) error {
 	outGif := gif.GIF{
 		Disposal: make([]byte, len(frames)),
 		Image:    make([]*image.Paletted, len(frames)),
@@ -404,15 +533,15 @@ func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, maxDimension int, r
 	for i := range outGif.Delay {
 		outGif.Delay[i] = 10
 	}
-	maxDim := float64(maxDimension)
+	maxDim := math.Max(float64(mapPic.Size().X), float64(mapPic.Size().Y))
 	var scale float64
 	if rect.Size().X > rect.Size().Y {
 		scale = maxDim / float64(rect.Size().X)
 	} else {
 		scale = maxDim / float64(rect.Size().Y)
 	}
-	outMaxDimX := int(scale * float64(rect.Size().X))
-	outMaxDimY := int(scale * float64(rect.Size().Y))
+	outMaxDimX := mapPic.Size().X
+	outMaxDimY := mapPic.Size().Y
 	ts1 := time.Now()
 	gifPalette := tnt.TAPalette
 	gifPalette[0] = image.Transparent
@@ -521,7 +650,9 @@ func (gp *Game) DrawGif(w io.Writer, frames []PlaybackFrame, maxDimension int, r
 
 	return nil
 }
-func smoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
+
+// SmoothUnitMovement uses a colorMap to sync colors and adjust unit positions
+func SmoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
 	nullPoint := point{
 		X:    0,
 		Y:    0,
@@ -555,4 +686,119 @@ func smoothUnitMovement(frames []PlaybackFrame, colorMap map[int]int) {
 			}
 		}
 	}
+}
+
+// UnitDataSeriesWorker creates points for unit building analysis
+func UnitDataSeriesWorker(stream <-chan PacketRec) (out map[int][]UDSRecord, err error) {
+	out = make(map[int][]UDSRecord)
+	uc := make([]map[int]int, 10)
+	unitmem := make(map[uint16]*TAUnit)
+	series := make(map[int]SPLite)
+	seriesFull := make(map[int][]packet0x28)
+	var (
+		scorePacket packet0x28
+		litePacket  SPLite
+		ediff       float64
+		mdiff       float64
+		tdiff       float64
+		udsMain     UDSRecord
+		lastSPLite  int
+		clock       int
+		lastToken   string
+	)
+	for pr := range stream {
+		if pr.IdemToken != lastToken {
+			clock += int(pr.Time)
+			lastToken = pr.IdemToken
+		}
+		if pr.Data[0] == 0x28 {
+			err = binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, &scorePacket)
+			if err != nil {
+				return nil, err
+			}
+			if len(seriesFull[int(pr.Sender)]) == 0 {
+				seriesFull[int(pr.Sender)] = append(seriesFull[int(pr.Sender)], packet0x28{})
+			}
+			ediff = float64(scorePacket.TotalE - seriesFull[int(pr.Sender)][len(seriesFull[int(pr.Sender)])-1].TotalE)
+			mdiff = float64(scorePacket.TotalM - seriesFull[int(pr.Sender)][len(seriesFull[int(pr.Sender)])-1].TotalM)
+			tdiff = float64(clock - lastSPLite)
+			litePacket.Energy = (ediff / tdiff) * 1000
+			litePacket.Metal = (mdiff / tdiff) * 1000
+			litePacket.Kills = int(scorePacket.Kills)
+			litePacket.Losses = int(scorePacket.Losses)
+			litePacket.TotalE = float64(scorePacket.TotalE)
+			litePacket.TotalM = float64(scorePacket.TotalM)
+			litePacket.ExcessE = float64(scorePacket.ExcessE)
+			litePacket.ExcessM = float64(scorePacket.ExcessM)
+			if math.IsNaN(litePacket.Energy) || math.IsInf(litePacket.Energy, 1) {
+				litePacket.Energy = 1
+			}
+			if math.IsNaN(litePacket.Metal) || math.IsInf(litePacket.Metal, 1) {
+				litePacket.Metal = 1
+			}
+			litePacket.Milliseconds = clock
+			if litePacket.Metal > 1.0 || litePacket.Energy > 1.0 {
+				series[int(pr.Sender)] = litePacket
+			}
+			seriesFull[int(pr.Sender)] = append(seriesFull[int(pr.Sender)], scorePacket)
+			lastSPLite = clock
+		}
+		if pr.Data[0] == 0x09 {
+			tmp := &packet0x09{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			unitmem[tmp.UnitID] = &TAUnit{
+				Owner:    int(pr.Sender),
+				NetID:    tmp.NetID,
+				Finished: false,
+				ID:       uuid.New().String(),
+			}
+		}
+		if pr.Data[0] == 0x0c {
+			tmp := &packet0x0c{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			if tau, ok := unitmem[tmp.Destroyed]; ok || tau != nil {
+				if uc[int(pr.Sender)-1] == nil {
+					uc[int(pr.Sender)-1] = make(map[int]int)
+				}
+				uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)]--
+				udsMain = UDSRecord{
+					NetID:  int(unitmem[tmp.Destroyed].NetID),
+					Count:  uc[int(pr.Sender)-1][int(unitmem[tmp.Destroyed].NetID)],
+					SPLite: series[int(pr.Sender)],
+				}
+				delete(unitmem, tmp.Destroyed)
+				if out[int(pr.Sender)] == nil {
+					out[int(pr.Sender)] = []UDSRecord{}
+				}
+				out[int(pr.Sender)] = append(out[int(pr.Sender)], udsMain)
+			}
+		}
+		if pr.Data[0] == 0x12 {
+			tmp := &packet0x12{}
+			if err := binary.Read(bytes.NewReader(pr.Data), binary.LittleEndian, tmp); err != nil {
+				return nil, err
+			}
+			if tau, ok := unitmem[tmp.BuiltID]; ok && tau != nil && !unitmem[tmp.BuiltID].Finished {
+				unitmem[tmp.BuiltID].Finished = true
+				if uc[int(pr.Sender)-1] == nil {
+					uc[int(pr.Sender)-1] = make(map[int]int)
+				}
+				uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)]++
+				udsMain = UDSRecord{
+					NetID:  int(unitmem[tmp.BuiltID].NetID),
+					Count:  uc[int(pr.Sender)-1][int(unitmem[tmp.BuiltID].NetID)],
+					SPLite: series[int(pr.Sender)],
+				}
+				if out[int(pr.Sender)] == nil {
+					out[int(pr.Sender)] = []UDSRecord{}
+				}
+				out[int(pr.Sender)] = append(out[int(pr.Sender)], udsMain)
+			}
+		}
+	}
+	return
 }

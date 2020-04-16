@@ -1,5 +1,10 @@
 package tad
 
+import (
+	"fmt"
+	"strings"
+)
+
 type sectorType int32
 
 const (
@@ -155,6 +160,7 @@ type FinalScore struct {
 	ExcessE float64 `json:"excessEnergy"`
 	TotalM  float64 `json:"metalProduced"`
 	ExcessM float64 `json:"excessMetal"`
+	IsLast  bool    `json:"isLast"`
 }
 
 // SPLite is a smaller version of a score packet. It only contains m/e per second.
@@ -177,4 +183,66 @@ type scoreError struct {
 
 func (s *scoreError) Error() string {
 	return "detected foul play"
+}
+
+// UDSRecord is for exporting unit data series worker data.
+type UDSRecord struct {
+	NetID int
+	Count int
+	SPLite
+}
+
+// Export creates a record for saving the data
+func (u *UDSRecord) Export() []string {
+	data := fmt.Sprintf("%v,%v,%v,%v,%v,%v,%v,%v,%v",
+		u.NetID,
+		u.SPLite.Milliseconds,
+		u.SPLite.Metal,
+		u.SPLite.Energy,
+		u.SPLite.TotalM,
+		u.SPLite.TotalE,
+		u.SPLite.Kills,
+		u.SPLite.Losses,
+		u.Count)
+	return strings.Split(data, ",")
+}
+
+// UnitTypeRecord is data on a unit type for a player
+type UnitTypeRecord struct {
+	Kills          map[string]int
+	Deaths         map[string]int
+	Produced       int
+	FirstProduced  int // milliseconds
+	DamageDealt    int
+	DamageReceived int
+}
+
+// GetDeaths returns the total deaths for the UTR
+func (utr *UnitTypeRecord) GetDeaths() int {
+	if utr.Deaths == nil {
+		return 0
+	}
+	total := 0
+	for _, v := range utr.Deaths {
+		total += v
+	}
+	return total
+}
+
+// GetKills returns the total kills for the UTR
+func (utr *UnitTypeRecord) GetKills() int {
+	if utr.Kills == nil {
+		return 0
+	}
+	total := 0
+	for _, v := range utr.Kills {
+		total += v
+	}
+	return total
+}
+
+// PlayerMessage is an in-game message from a player with a millisecond timestamp
+type PlayerMessage struct {
+	Message string
+	Sent    int
 }

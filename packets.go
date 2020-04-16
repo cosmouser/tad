@@ -172,7 +172,7 @@ type packet0x0b struct {
 	DamagerID    uint16
 	Damage       uint16
 	Unknown      byte
-	WeaponNumber uint8
+	Unknown2 uint8
 }
 
 func (p *packet0x0b) printMessage(unitNames map[uint16]string, unitMem map[uint16]uint16) string {
@@ -183,7 +183,7 @@ func (p *packet0x0b) printMessage(unitNames map[uint16]string, unitMem map[uint1
 		p.Damage,
 		unitNames[unitMem[p.DamagedID]],
 		p.DamagedID,
-		p.WeaponNumber)
+		p.Unknown2)
 }
 func (p *packet0x0b) GetMarker() byte {
 	return p.Marker
