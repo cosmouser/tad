@@ -47,6 +47,19 @@ var testGif = path.Join("tmp", "test.gif")
 
 const minuteInMilliseconds = 60000
 
+func TestLobbyComp(t *testing.T) {
+	ctx := context.Background()
+	tf, err := os.Open(sample11)
+	if err != nil {
+		t.Error(err)
+	}
+	gp, _, err := Analyze(ctx, tf)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", gp)
+	tf.Close()
+}
 func TestUnitCountWorker(t *testing.T) {
 	const lambdaTimeoutSeconds = 120
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
@@ -255,7 +268,7 @@ func TestComboAnalyze(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), lambdaTimeoutSeconds*time.Second)
 	defer cancel()
 	// begin for-range in records section
-	tf, err := os.Open(sample10)
+	tf, err := os.Open(sample11)
 	if err != nil {
 		t.Error(err)
 	}
