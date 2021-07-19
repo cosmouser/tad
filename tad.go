@@ -13,6 +13,8 @@ import (
 	"math"
 	"sort"
 
+	"golang.org/x/text/encoding/charmap"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -72,12 +74,18 @@ func parseAndCopyPlayer(r io.Reader, p *DemoPlayer) error {
 	if err != nil {
 		return err
 	}
+	textDecoder := charmap.Windows1252.NewDecoder()
+	playerName := string(bytes.TrimRight(player.Name[:], "\x00"))
+	name, err := textDecoder.String(playerName)
+	if err != nil {
+		return err
+	}
 	*p = DemoPlayer{
 		Color:  player.Color,
 		Side:   player.Side,
 		Number: player.Number,
 		IP:     p.IP,
-		Name:   string(bytes.TrimRight(player.Name[:], "\x00")),
+		Name:   name,
 	}
 	return nil
 }

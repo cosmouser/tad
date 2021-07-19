@@ -20,6 +20,7 @@ import (
 	"github.com/fogleman/gg"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/text/encoding/charmap"
 )
 
 // Analyze opens up a demo and gives back the game's data and a channel of its packets
@@ -32,7 +33,12 @@ func Analyze(ctx context.Context, rs io.ReadSeeker) (gp *Game, prs <-chan Packet
 		return nil, nil, err
 	}
 	gp = new(Game)
-	gp.MapName = string(bytes.Split(sum.MapName[:], []byte{0})[0])
+	textDecoder := charmap.Windows1252.NewDecoder()
+	mapName, err := textDecoder.String(string(bytes.Split(sum.MapName[:], []byte{0})[0]))
+	if err != nil {
+		return nil, nil, err
+	}
+	gp.MapName = mapName
 	gp.MaxUnits = int(sum.MaxUnits)
 	gp.Players = make([]DemoPlayer, int(sum.NumPlayers))
 	err = loadExtraSectors(rs, gp)
