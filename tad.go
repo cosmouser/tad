@@ -859,7 +859,6 @@ func (gp *Game) GetFingerprint() string {
 			gp.Players[nameToNumber[n]].Name,
 			gp.Players[nameToNumber[n]].Side,
 			gp.Players[nameToNumber[n]].Color,
-			gp.Players[nameToNumber[n]].IP,
 			gp.Players[nameToNumber[n]].TDPID,
 		)
 		party += tmp
